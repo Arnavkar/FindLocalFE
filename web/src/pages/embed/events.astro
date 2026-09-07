@@ -1,0 +1,288 @@
+---
+// /embed/events — the page public/widget.js frames on partner sites.
+// Query contract (web/src/lib/embed.ts): region=<group> | city=<slug|name>,
+// cat, when | from,to, view=list|calendar|map, limit<=300, theme, partner.
+// Region groups query several cities at once (listUpcomingEventsForCities);
+// single cities use the site's own filter contract. Never reads locals.city.
+import EmbedLayout from '../../layouts/EmbedLayout.astro';
+import LeafletMap, { type MapMarker } from '../../components/LeafletMap.astro';
+import { getDb, listUpcomingEvents, listUpcomingEventsForCities, type EventRow } from '../../lib/db.js';
+import { embedCityFilters, embedGroupRange, eventUrl, parseEmbedParams, siteUrl, venueUrl } from '../../lib/embed.js';
+import { categoryLabel, dayHeader } from '../../lib/format.js';
+import { CATEGORY_SLUGS, formatTime, regionGroupCities } from '@findlocal/shared';
+
+const p = parseEmbedParams(Astro.url.searchParams);
+const cats = (p.filterParams.get('cat') ?? '').split(',').map((s) => s.trim().toLowerCase()).filter((s) => CATEGORY_SLUGS.includes(s));
+const catLabel = cats.length ? cats.map(categoryLabel).join(' & ') : 'Upcoming';
+const scopeName = p.group?.name ?? p.city?.name ?? '';
+const tz = p.group?.tz ?? p.city?.tz ?? 'America/New_York';
+
+let events: EventRow[] = [];
+let from = '';
+if (p.error) {
+  Astro.response.status = 404;
+} else if (p.group) {
+  const range = embedGroupRange(p, p.group);
+  from = range.from;
+  events = await listUpcomingEventsForCities(getDb(), { cities: regionGroupCities(p.group).map((c) => c.name), categories: cats, from: range.from, to: range.to, limit: p.limit + 1, tz: p.group.tz });
+} else if (p.city) {
+  const f = embedCityFilters(p, p.city);
+  from = f.from ?? '';
+  events = await listUpcomingEvents(getDb(), f);
+}
+const truncated = events.length > p.limit;
+if (truncated) events = events.slice(0, p.limit);
+
+const campaign = p.campaign;
+const seeAllHref = siteUrl(p.group ? '/' : `/city/${p.city?.slug ?? 'boston'}`, campaign, p.partner);
+const homeHref = siteUrl('/', campaign, p.partner);
+const title = `${catLabel} events in ${scopeName} · FindLocal widget`;
+
+// Date-grouped agenda.
+const byDay = new Map<string, EventRow[]>();
+for (const e of events) byDay.set(e.event_date, [...(byDay.get(e.event_date) ?? []), e]);
+
+// One marker per venue (as EventMap.astro), links carrying UTM params.
+const byVenue = new Map<string, MapMarker>();
+for (const e of events) {
+  if (e.venue_lat == null || e.venue_lng == null) continue;
+  let m = byVenue.get(e.venue_id);
+  if (!m) {
+    m = { lat: e.venue_lat, lng: e.venue_lng, count: 0, title: e.venue_name, href: venueUrl(e.venue_id, campaign, p.partner), subtitle: e.venue_address ?? undefined, items: [] };
+    byVenue.set(e.venue_id, m);
+  }
+  m.count += 1;
+  if (m.items!.length < 4) m.items!.push({ label: e.title, href: eventUrl(e.id, campaign, p.partner) });
+}
+const markers = [...byVenue.values()];
+const groupCities = p.group ? regionGroupCities(p.group) : [];
+const center = p.city
+  ? { lat: p.city.lat, lng: p.city.lng, zoom: p.city.zoom }
+  : { lat: groupCities[0]?.lat ?? 42.36, lng: groupCities[0]?.lng ?? -71.06, zoom: 7 };
+
+/** Where a row happened, for cross-city lists: town or city partition. */
+const place = (e: EventRow) => (p.group ? e.venue_region || e.region || e.city : e.venue_region || e.region || '');
+const data = {
+  tz, from, truncated, seeAll: seeAllHref,
+  events: events.map((e) => ({ id: e.id, title: e.title, date: e.event_date, time: formatTime(e.start_time), venue: e.venue_name, place: place(e), url: eventUrl(e.id, campaign, p.partner) })),
+};
+const json = JSON.stringify(data).replace(/</g, '\\u003c');
+const views: { id: 'list' | 'calendar' | 'map'; label: string }[] = [
+  { id: 'list', label: 'List' },
+  { id: 'calendar', label: 'Calendar' },
+  { id: 'map', label: 'Map' },
+];
+---
+<EmbedLayout title={title} theme={p.theme} homeHref={homeHref}>
+  {p.error ? (
+    <div class="fl-empty">
+      <h2>This widget is misconfigured</h2>
+      <p>Unknown {p.error === 'unknown-region' ? 'region' : 'city'} <code>{Astro.url.searchParams.get(p.error === 'unknown-region' ? 'region' : 'city')}</code>. See the <a href="https://findlocal.community/developers/widgets">widget documentation</a> for the supported values.</p>
+    </div>
+  ) : (
+    <>
+      <header class="fl-head">
+        <h1>{catLabel} events in {scopeName}</h1>
+        <div class="fl-tabs" role="tablist" aria-label="View">
+          {views.map((v) => (
+            <button type="button" role="tab" id={`tab-${v.id}`} aria-controls={`fl-${v.id}`} aria-selected={p.view === v.id ? 'true' : 'false'} data-view={v.id}>{v.label}</button>
+          ))}
+        </div>
+      </header>
+
+      <section id="fl-list" role="tabpanel" aria-labelledby="tab-list" hidden={p.view !== 'list'}>
+        {events.length === 0 ? (
+          <p class="fl-empty">Nothing listed yet — listings update daily. <a href={seeAllHref} rel="noopener">Browse FindLocal</a>.</p>
+        ) : (
+          [...byDay.entries()].map(([day, list]) => (
+            <div class="fl-day">
+              <h2 class="fl-day-h">{dayHeader(day, tz)}</h2>
+              <ul class="fl-rows">
+                {list.map((e) => (
+                  <li class="fl-row">
+                    <span class="fl-time">{formatTime(e.start_time) || '—'}</span>
+                    <span class="fl-main">
+                      <a class="fl-title" href={eventUrl(e.id, campaign, p.partner)} rel="noopener">{e.title}</a>
+                      <span class="fl-where">{e.venue_name}{place(e) ? ` · ${place(e)}` : ''}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        )}
+        {truncated && <p class="fl-more">Showing the first {p.limit} events. <a href={seeAllHref} rel="noopener">See everything on FindLocal</a>.</p>}
+      </section>
+
+      <section id="fl-calendar" role="tabpanel" aria-labelledby="tab-calendar" hidden={p.view !== 'calendar'}>
+        <div class="fl-cal-nav">
+          <button type="button" class="fl-cal-btn" data-cal="prev" aria-label="Previous month">‹</button>
+          <h2 class="fl-cal-title" data-cal-title aria-live="polite"></h2>
+          <button type="button" class="fl-cal-btn" data-cal="next" aria-label="Next month">›</button>
+        </div>
+        <div class="fl-cal-grid" data-cal-grid role="grid"></div>
+        <div class="fl-cal-day" data-cal-day aria-live="polite"></div>
+      </section>
+
+      <section id="fl-map" role="tabpanel" aria-labelledby="tab-map" hidden={p.view !== 'map'}>
+        {markers.length === 0 ? (
+          <p class="fl-empty">No mappable venues for these events.</p>
+        ) : (
+          <LeafletMap markers={markers} center={center} label={`Map of ${catLabel.toLowerCase()} events in ${scopeName}`} />
+        )}
+      </section>
+
+      <script is:inline type="application/json" id="fl-data" set:html={json} />
+    </>
+  )}
+</EmbedLayout>
+
+<script>
+  type Ev = { id: string; title: string; date: string; time: string; venue: string; place: string; url: string };
+  type Data = { tz: string; from: string; truncated: boolean; seeAll: string; events: Ev[] };
+  const raw = document.getElementById('fl-data')?.textContent;
+  const data: Data = raw ? JSON.parse(raw) : { tz: 'America/New_York', from: '', truncated: false, seeAll: '', events: [] };
+  const resize = () => document.dispatchEvent(new Event('fl:resize'));
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
+
+  // ---- view switcher
+  const panels: Record<string, HTMLElement | null> = {
+    list: document.getElementById('fl-list'),
+    calendar: document.getElementById('fl-calendar'),
+    map: document.getElementById('fl-map'),
+  };
+  let calendarBuilt = false;
+  function show(view: string) {
+    for (const [k, el] of Object.entries(panels)) if (el) el.hidden = k !== view;
+    document.querySelectorAll<HTMLButtonElement>('[role="tab"][data-view]').forEach((b) => {
+      b.setAttribute('aria-selected', b.dataset.view === view ? 'true' : 'false');
+    });
+    if (view === 'calendar' && !calendarBuilt) buildCalendar();
+    if (view === 'map') {
+      const el = panels.map?.querySelector<HTMLElement>('.fl-map');
+      if (el) document.dispatchEvent(new CustomEvent('fl:map-show', { detail: el }));
+    }
+    resize();
+  }
+  document.querySelectorAll<HTMLButtonElement>('[role="tab"][data-view]').forEach((b) => {
+    b.addEventListener('click', () => show(b.dataset.view ?? 'list'));
+  });
+  document.addEventListener('fl:map-ready', resize);
+
+  // ---- calendar (all arithmetic in UTC so a calendar day never shifts)
+  const byDate = new Map<string, Ev[]>();
+  for (const e of data.events) byDate.set(e.date, [...(byDate.get(e.date) ?? []), e]);
+  const dates = [...byDate.keys()].sort();
+  const monthOf = (ymd: string) => ymd.slice(0, 7);
+  const first = data.from || dates[0] || new Date().toISOString().slice(0, 10);
+  const minMonth = monthOf(first);
+  const maxMonth = monthOf(dates[dates.length - 1] ?? first);
+  let month = minMonth;
+  let selected: string | null = null;
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const DOW = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const pad = (n: number) => String(n).padStart(2, '0');
+  function ymdOf(y: number, m: number, d: number) { return `${y}-${pad(m)}-${pad(d)}`; }
+  function shiftMonth(ym: string, n: number) {
+    const [y, m] = ym.split('-').map(Number) as [number, number];
+    const d = new Date(Date.UTC(y, m - 1 + n, 1));
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
+  }
+
+  function renderDay(ymd: string) {
+    const box = document.querySelector<HTMLElement>('[data-cal-day]');
+    if (!box) return;
+    const list = byDate.get(ymd) ?? [];
+    const [y, m, d] = ymd.split('-').map(Number) as [number, number, number];
+    const label = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+    box.innerHTML = `<h3 class="fl-day-h">${esc(label)}</h3>` + (list.length
+      ? `<ul class="fl-rows">${list.map((e) => `<li class="fl-row"><span class="fl-time">${esc(e.time || '—')}</span><span class="fl-main"><a class="fl-title" href="${esc(e.url)}" rel="noopener">${esc(e.title)}</a><span class="fl-where">${esc(e.venue)}${e.place ? ' · ' + esc(e.place) : ''}</span></span></li>`).join('')}</ul>`
+      : '<p class="fl-empty">Nothing listed this day.</p>');
+    resize();
+  }
+
+  function renderMonth() {
+    const grid = document.querySelector<HTMLElement>('[data-cal-grid]');
+    const title = document.querySelector<HTMLElement>('[data-cal-title]');
+    if (!grid || !title) return;
+    const [y, m] = month.split('-').map(Number) as [number, number];
+    title.textContent = `${MONTHS[m - 1]} ${y}`;
+    const firstDow = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+    const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    let html = DOW.map((d) => `<div class="fl-cal-dow" role="columnheader">${d}</div>`).join('');
+    for (let i = 0; i < firstDow; i++) html += '<div class="fl-cal-cell empty" role="gridcell"></div>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ymd = ymdOf(y, m, d);
+      const n = byDate.get(ymd)?.length ?? 0;
+      const cls = ['fl-cal-cell', n ? 'has' : '', ymd === selected ? 'sel' : ''].filter(Boolean).join(' ');
+      html += n
+        ? `<button type="button" class="${cls}" role="gridcell" data-day="${ymd}" aria-label="${n} event${n === 1 ? '' : 's'} on ${ymd}"><span class="d">${d}</span><span class="n">${n}</span></button>`
+        : `<div class="${cls}" role="gridcell"><span class="d">${d}</span></div>`;
+    }
+    grid.innerHTML = html;
+    grid.querySelectorAll<HTMLButtonElement>('[data-day]').forEach((b) => {
+      b.addEventListener('click', () => { selected = b.dataset.day ?? null; renderMonth(); if (selected) renderDay(selected); });
+    });
+    const prev = document.querySelector<HTMLButtonElement>('[data-cal="prev"]');
+    const next = document.querySelector<HTMLButtonElement>('[data-cal="next"]');
+    if (prev) prev.disabled = month <= minMonth;
+    if (next) next.disabled = month >= maxMonth;
+    resize();
+  }
+
+  function buildCalendar() {
+    calendarBuilt = true;
+    document.querySelector('[data-cal="prev"]')?.addEventListener('click', () => { month = shiftMonth(month, -1); renderMonth(); });
+    document.querySelector('[data-cal="next"]')?.addEventListener('click', () => { month = shiftMonth(month, 1); renderMonth(); });
+    renderMonth();
+    const firstDay = dates.find((d) => monthOf(d) === month);
+    if (firstDay) { selected = firstDay; renderMonth(); renderDay(firstDay); }
+    else if (data.events.length === 0) {
+      const box = document.querySelector<HTMLElement>('[data-cal-day]');
+      if (box) box.innerHTML = `<p class="fl-empty">Nothing listed yet. <a href="${esc(data.seeAll)}" rel="noopener">Browse FindLocal</a>.</p>`;
+    }
+    if (data.truncated) {
+      const box = document.querySelector<HTMLElement>('[data-cal-day]');
+      box?.insertAdjacentHTML('beforeend', `<p class="fl-more">Only the first ${data.events.length} events are loaded. <a href="${esc(data.seeAll)}" rel="noopener">See everything on FindLocal</a>.</p>`);
+    }
+  }
+
+  // Initial view came from the server; make sure a hidden map/calendar initialises.
+  const initial = document.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]')?.dataset.view ?? 'list';
+  if (initial !== 'list') show(initial);
+</script>
+
+<style>
+  .fl-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; margin: 0 0 0.6rem; }
+  h1 { font-size: 1.05rem; }
+  .fl-tabs { display: inline-flex; border: 1px solid rgb(var(--border)); border-radius: 999px; padding: 2px; background: rgb(var(--surface-accent)); }
+  .fl-tabs button { border: 0; background: transparent; color: rgb(var(--text-2)); font-weight: 600; font-size: 0.82rem; padding: 0.3rem 0.75rem; border-radius: 999px; cursor: pointer; }
+  .fl-tabs button[aria-selected='true'] { background: rgb(var(--teal)); color: rgb(var(--text-inverse)); }
+  .fl-day { margin: 0.6rem 0 0; }
+  .fl-day-h, :global(.fl-day-h) { font-family: var(--font-head); font-size: 0.85rem; font-weight: 700; color: rgb(var(--teal)); margin: 0 0 0.3rem; padding-bottom: 0.25rem; border-bottom: 1px solid rgb(var(--border)); }
+  .fl-rows, :global(.fl-rows) { list-style: none; margin: 0; padding: 0; }
+  .fl-row, :global(.fl-row) { display: grid; grid-template-columns: 4.6rem 1fr; gap: 0.5rem; padding: 0.4rem 0; border-bottom: 1px solid rgb(var(--border) / 0.6); }
+  .fl-row:last-child, :global(.fl-row:last-child) { border-bottom: 0; }
+  .fl-time, :global(.fl-time) { color: rgb(var(--orange)); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; padding-top: 0.15rem; }
+  .fl-main, :global(.fl-main) { min-width: 0; display: flex; flex-direction: column; }
+  .fl-title, :global(.fl-title) { font-family: var(--font-head); font-weight: 600; color: rgb(var(--text)); line-height: 1.25; }
+  .fl-where, :global(.fl-where) { color: rgb(var(--text-2)); font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fl-empty, :global(.fl-empty) { color: rgb(var(--text-2)); padding: 1rem 0; margin: 0; }
+  .fl-more, :global(.fl-more) { color: rgb(var(--text-2)); font-size: 0.85rem; margin: 0.8rem 0 0; }
+  code { background: rgb(var(--surface-sunken)); padding: 0 0.3rem; border-radius: 4px; }
+
+  .fl-cal-nav { display: flex; align-items: center; justify-content: space-between; margin: 0 0 0.5rem; }
+  .fl-cal-title { font-size: 0.95rem; }
+  .fl-cal-btn { width: 32px; height: 32px; border-radius: 999px; border: 1px solid rgb(var(--border)); background: rgb(var(--surface)); color: rgb(var(--teal)); cursor: pointer; font-size: 1.1rem; line-height: 1; }
+  .fl-cal-btn:disabled { opacity: 0.35; cursor: default; }
+  .fl-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  :global(.fl-cal-dow) { text-align: center; font-size: 0.7rem; font-weight: 700; color: rgb(var(--text-3)); padding: 0.2rem 0; }
+  :global(.fl-cal-cell) { position: relative; aspect-ratio: 1; border-radius: var(--radius-sm); border: 1px solid transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.85rem; color: rgb(var(--text-3)); background: transparent; padding: 0; }
+  :global(.fl-cal-cell.empty) { visibility: hidden; }
+  :global(.fl-cal-cell.has) { color: rgb(var(--text)); background: rgb(var(--teal-50)); border-color: rgb(var(--teal) / 0.25); cursor: pointer; font-weight: 700; }
+  :global(.fl-cal-cell.has:hover) { border-color: rgb(var(--teal)); }
+  :global(.fl-cal-cell.sel) { background: rgb(var(--teal)); color: rgb(var(--text-inverse)); border-color: rgb(var(--teal)); }
+  :global(.fl-cal-cell .n) { font-size: 0.62rem; font-weight: 700; opacity: 0.85; }
+  .fl-cal-day { margin-top: 0.8rem; }
+  .fl-cal-day :global(.fl-day-h) { margin-top: 0; }
+</style>

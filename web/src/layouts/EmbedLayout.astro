@@ -1,0 +1,118 @@
+---
+// Shell for /embed/* widget pages: brand tokens + fonts without the site
+// header/footer, noindex, links open in a new tab (<base target>), and the
+// resize beacon that lets public/widget.js size the host iframe. Theme is
+// forced via data-theme (light|dark) or follows the host OS when 'auto'.
+import type { EmbedTheme } from '../lib/embed.js';
+interface Props {
+  title: string;
+  theme: EmbedTheme;
+  /** "Powered by" link target (already carrying UTM params). */
+  homeHref: string;
+}
+const { title, theme, homeHref } = Astro.props;
+---
+<!doctype html>
+<html lang="en" data-theme={theme}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{title}</title>
+    <base target="_blank" />
+    <link rel="preload" href="/fonts/epilogue-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin />
+  </head>
+  <body>
+    <div class="fl-widget">
+      <slot />
+      <p class="fl-powered">
+        <a href={homeHref} rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5Z"/></svg>
+          Powered by <strong>FindLocal</strong>
+        </a>
+      </p>
+    </div>
+    <script>
+      // Resize beacon: the host page's widget.js listens for this and sizes the iframe.
+      // Measure the content wrapper, not documentElement: inside an iframe the
+      // document is never shorter than the viewport, so the widget could grow
+      // but never shrink.
+      const wrap = document.querySelector<HTMLElement>('.fl-widget');
+      const post = () => {
+        if (window.parent === window || !wrap) return;
+        const height = Math.ceil(wrap.getBoundingClientRect().height);
+        window.parent.postMessage({ type: 'findlocal:resize', height }, '*');
+      };
+      window.addEventListener('load', post);
+      document.addEventListener('fl:resize', post);
+      if ('ResizeObserver' in window && wrap) new ResizeObserver(post).observe(wrap);
+      else {
+        let n = 0;
+        const t = setInterval(() => { post(); if (++n > 20) clearInterval(t); }, 500);
+      }
+      post();
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  @font-face { font-family: 'Epilogue'; src: url('/fonts/epilogue-latin.woff2') format('woff2'); font-weight: 400 800; font-style: normal; font-display: swap; }
+  @font-face { font-family: 'Manrope'; src: url('/fonts/manrope-latin.woff2') format('woff2'); font-weight: 400 800; font-style: normal; font-display: swap; }
+  :root {
+    --teal: 0 101 101; --teal-600: 0 84 84; --teal-50: 230 247 245; --teal-100: 179 232 224;
+    --orange: 236 124 53; --orange-600: 224 104 42; --orange-50: 253 242 233; --rust: 132 38 0;
+    --bg: 255 255 255; --bg-2: 249 250 251; --surface: 255 255 255; --surface-sunken: 243 244 246; --surface-accent: 237 238 239;
+    --text: 17 24 39; --text-2: 75 85 99; --text-3: 156 163 175; --text-inverse: 255 255 255;
+    --border: 229 231 235; --border-2: 209 213 219;
+    --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    --font-head: 'Epilogue', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    --radius: 12px; --radius-sm: 8px;
+    --shadow-md: 0 2px 4px rgb(0 0 0 / 0.15);
+    color-scheme: light;
+  }
+  :root[data-theme='dark'] { color-scheme: dark; }
+  :root[data-theme='auto'] { color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) {
+    :root[data-theme='auto'] {
+      --teal: 99 186 171; --teal-600: 128 216 202; --teal-50: 0 34 34; --teal-100: 0 51 51;
+      --orange: 236 124 53; --orange-600: 241 151 80; --orange-50: 72 22 0; --rust: 183 92 41;
+      --bg: 17 24 39; --bg-2: 31 41 55; --surface: 30 41 59; --surface-sunken: 11 18 32; --surface-accent: 31 41 55;
+      --text: 249 250 251; --text-2: 229 231 235; --text-3: 156 163 175; --text-inverse: 17 24 39;
+      --border: 55 65 81; --border-2: 75 85 99; --shadow-md: 0 2px 6px rgb(0 0 0 / 0.5);
+    }
+    :root[data-theme='auto'] .fl-map .leaflet-tile { filter: brightness(0.85) contrast(1.05); }
+  }
+  :root[data-theme='dark'] {
+    --teal: 99 186 171; --teal-600: 128 216 202; --teal-50: 0 34 34; --teal-100: 0 51 51;
+    --orange: 236 124 53; --orange-600: 241 151 80; --orange-50: 72 22 0; --rust: 183 92 41;
+    --bg: 17 24 39; --bg-2: 31 41 55; --surface: 30 41 59; --surface-sunken: 11 18 32; --surface-accent: 31 41 55;
+    --text: 249 250 251; --text-2: 229 231 235; --text-3: 156 163 175; --text-inverse: 17 24 39;
+    --border: 55 65 81; --border-2: 75 85 99; --shadow-md: 0 2px 6px rgb(0 0 0 / 0.5);
+  }
+  :root[data-theme='dark'] .fl-map .leaflet-tile { filter: brightness(0.85) contrast(1.05); }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { overflow: hidden; }
+  body { margin: 0; background: rgb(var(--bg)); color: rgb(var(--text)); font: 15px/1.45 var(--font-body); -webkit-font-smoothing: antialiased; overflow: hidden; }
+  a { color: rgb(var(--teal)); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  h1, h2, h3 { font-family: var(--font-head); letter-spacing: -0.02em; line-height: 1.15; margin: 0; font-weight: 700; }
+  button { font: inherit; }
+  *:focus-visible { outline: 2px solid rgb(var(--teal)); outline-offset: 2px; }
+  .fl-widget { padding: 0.75rem; }
+  .fl-powered { margin: 0.9rem 0 0; padding-top: 0.6rem; border-top: 1px solid rgb(var(--border)); font-size: 0.78rem; color: rgb(var(--text-3)); display: flex; justify-content: flex-end; }
+  .fl-powered a { display: inline-flex; align-items: center; gap: 0.3rem; color: rgb(var(--text-2)); }
+  .fl-powered strong { color: rgb(var(--teal)); }
+
+  /* Maps (Leaflet) — same rules as Layout.astro. */
+  .fl-map { height: 380px; border-radius: var(--radius); border: 1px solid rgb(var(--border)); background: rgb(var(--surface-sunken)); margin: 0; overflow: hidden; }
+  .fl-map.tall { height: min(70vh, 560px); }
+  .fl-map .leaflet-popup-content-wrapper { border-radius: var(--radius-sm); background: rgb(var(--surface)); color: rgb(var(--text)); box-shadow: var(--shadow-md); }
+  .fl-map .leaflet-popup-tip { background: rgb(var(--surface)); }
+  .fl-map .leaflet-popup-content { font-family: var(--font-body); font-size: 0.85rem; margin: 0.6rem 0.8rem; line-height: 1.4; }
+  .fl-map .popup-title { font-weight: 700; font-family: var(--font-head); margin-bottom: 0.2rem; }
+  .fl-map .popup-list { margin: 0.3rem 0 0; padding: 0; list-style: none; }
+  .fl-map .popup-list li { margin: 0.15rem 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+  .fl-marker { background: #006565; color: #fff; border: 2px solid #fff; border-radius: 999px; box-shadow: 0 1px 3px rgb(0 0 0 / 0.4); display: flex; align-items: center; justify-content: center; font: 700 12px/1 var(--font-body); }
+</style>

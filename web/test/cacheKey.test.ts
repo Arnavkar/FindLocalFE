@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cacheKeyFor, cacheQueryFor, hasMapView, isCityCookieRoute, readCookie } from '../src/lib/cacheKey.js';
+import { cacheKeyFor, cacheQueryFor, hasMapView, isCityCookieRoute, isFullQueryRoute, readCookie } from '../src/lib/cacheKey.js';
 import { browserCacheControl, cachePolicyFor, edgeCacheControl } from '../src/lib/cacheHeaders.js';
 
 const u = (s: string) => new URL(s, 'https://findlocal.community');
@@ -33,6 +33,15 @@ describe('cacheQueryFor', () => {
     expect(hasMapView('/city/austin')).toBe(true);
     expect(hasMapView('/venues')).toBe(false);
     expect(isCityCookieRoute('/venues')).toBe(true);
+  });
+  it('keys embed routes on the whole sorted query and never on the cookie', () => {
+    expect(cacheQueryFor(u('/embed/events?theme=dark&region=new-england&view=map&cat=literary'), 'Denver')).toBe('cat=literary&region=new-england&theme=dark&view=map');
+    expect(cacheQueryFor(u('/embed/events?city=boston&limit=50'), null)).toBe('city=boston&limit=50');
+    expect(isFullQueryRoute('/embed/events')).toBe(true);
+    expect(isFullQueryRoute('/event/abc')).toBe(false);
+    expect(cachePolicyFor('/embed/events').edge).toBe(600);
+    // UTM params from widget links do not fragment the event-page cache.
+    expect(cacheQueryFor(u('/event/abc?utm_source=widget&utm_medium=embed&utm_campaign=x'), null)).toBe('');
   });
   it('keys API routes on the whole sorted query', () => {
     expect(cacheQueryFor(u('/api/events?limit=2&city=Boston'), 'X')).toBe('city=Boston&limit=2');

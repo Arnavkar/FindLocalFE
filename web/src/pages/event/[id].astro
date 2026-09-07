@@ -3,6 +3,7 @@
 // 200 + "no longer listed" notice + noindex when soft-deleted, otherwise 200
 // with Event + BreadcrumbList JSON-LD. Uppercase uuids 301 in the middleware.
 import Layout from '../../layouts/Layout.astro';
+import BackLink from '../../components/BackLink.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import EventCard from '../../components/EventCard.astro';
 import Icon from '../../components/Icon.astro';
@@ -75,6 +76,7 @@ const mapsHref = event?.venue_address ? `https://www.google.com/maps/search/?api
     {jsonLd && <JsonLd data={jsonLd} slot="head" />}
     <article class="event">
       <Breadcrumbs crumbs={crumbs} />
+      {city && <BackLink href={`/city/${city.slug}`} label={`Back to events in ${city.name}`} />}
       <div class="hero">
         {image ? (
           <img src={image} alt="" width="1280" height="720" fetchpriority="high" decoding="async" />
@@ -125,12 +127,14 @@ const mapsHref = event?.venue_address ? `https://www.google.com/maps/search/?api
         <p><a class="venue-name" href={`/venue/${event.venue_id}`}>{event.venue_name}</a></p>
         {event.venue_address && <p class="muted">{mapsHref ? <a href={mapsHref} target="_blank" rel="noopener">{event.venue_address}</a> : event.venue_address}</p>}
         {event.venue_url && <p><a href={event.venue_url} rel="noopener nofollow" target="_blank">Venue website</a></p>}
+        <p class="venue-links"><a href={`/venue/${event.venue_id}`}>All events at {event.venue_name}</a>{city && <> · <a href="/venues">All venues in {city.name}</a></>}</p>
       </section>
 
       {moreAtVenue.length > 0 && (
         <section class="more">
           <h2>More at {event.venue_name}</h2>
           <div class="grid">{moreAtVenue.map((e) => <EventCard event={e} tz={tz} />)}</div>
+          <p class="more-link"><a href={`/venue/${event.venue_id}`}>See everything coming up at {event.venue_name} →</a></p>
         </section>
       )}
       <p class="source faint">Listing sourced from {event.venue_name}{event.detail_page_url || event.root_url ? <> (<a href={event.detail_page_url ?? event.root_url ?? '#'} rel="noopener nofollow" target="_blank">original page</a>)</> : null}. Details can change — confirm with the venue.</p>
@@ -166,5 +170,7 @@ const mapsHref = event?.venue_address ? `https://www.google.com/maps/search/?api
   .venue-name { font-weight: 700; font-size: 1.05rem; }
   .more { margin-top: 1.5rem; }
   .more h2 { margin-bottom: 0.8rem; }
+  .more-link { margin: 1rem 0 0; font-weight: 600; }
+  .venue-links { font-size: 0.92rem; }
   .source { font-size: 0.8rem; margin-top: 1.5rem; }
 </style>

@@ -12,6 +12,11 @@ export function isCityCookieRoute(pathname: string): boolean {
   return pathname === '/' || pathname === '/venues';
 }
 
+/** Routes keyed on their whole sorted query (they take params outside the filter contract). */
+export function isFullQueryRoute(pathname: string): boolean {
+  return pathname.startsWith('/api/') || pathname.startsWith('/embed/');
+}
+
 /** Routes that offer `?view=map` (the map variant must not collide with the list). */
 export function hasMapView(pathname: string): boolean {
   return pathname === '/' || pathname.startsWith('/city/');
@@ -35,9 +40,10 @@ export function readCookie(cookieHeader: string | null, name: string): string | 
 
 /** Canonical query for a request URL, with the extra keys this site caches on. */
 export function cacheQueryFor(url: URL, cookieCity: string | null): string {
-  if (url.pathname.startsWith('/api/')) {
-    // API routes take extra params (city, ids, venue, limit): key on the whole
-    // sorted query so distinct requests never share a cache entry.
+  if (isFullQueryRoute(url.pathname)) {
+    // API and embed routes take extra params (city, ids, venue, limit, view,
+    // theme, region group): key on the whole sorted query so distinct requests
+    // never share a cache entry.
     const all = new URLSearchParams(url.searchParams);
     all.sort();
     return all.toString();

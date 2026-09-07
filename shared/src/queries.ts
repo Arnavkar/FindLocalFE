@@ -254,6 +254,64 @@ export async function listSeriesDates(db: D1Database, venueId: string, title: st
   return results.map((r) => r.event_date);
 }
 
+// ---------------------------------------------------------------- multi-city (region groups / embeds)
+
+export interface MultiCityOptions {
+  /** City.name values (not slugs). Deduped; capped at MAX_CITIES. */
+  cities: string[];
+  categories?: string[];
+  /** Inclusive 'YYYY-MM-DD'; defaults to today in `tz`. */
+  from?: string;
+  to?: string | null;
+  /** Clamped to 1..MAX_LIMIT. */
+  limit?: number;
+  /** Zone for the default `from`; region groups pass their own. */
+  tz?: string;
+}
+
+const MAX_CITIES = 60;
+const MAX_CATEGORIES = 20;
+
+/** WHERE for the multi-city contract. Binds: cities + [to] + from + categories — always < 90. */
+function buildMultiCityWhere(o: MultiCityOptions): Where | null {
+  const cities = [...new Set(o.cities.map((c) => c.trim()).filter(Boolean))].slice(0, MAX_CITIES);
+  if (!cities.length) return null;
+  const where = [`e.city IN (${cities.map(() => '?').join(',')})`, `e.is_deleted = 0`, `e.event_date >= ?`];
+  const binds: unknown[] = [...cities, o.from ?? todayIn(o.tz ?? DEFAULT_TZ)];
+  if (o.to) {
+    where.push(`e.event_date <= ?`);
+    binds.push(o.to);
+  }
+  const cats = [...new Set(o.categories ?? [])].slice(0, MAX_CATEGORIES);
+  if (cats.length) {
+    where.push(`e.category IN (${cats.map(() => '?').join(',')})`);
+    binds.push(...cats);
+  }
+  return { sql: where.join(' AND '), binds };
+}
+
+/** Upcoming events across several cities (region-group embeds). No recurrence
+ * info: series_count = 1, series_image = null. */
+export async function listUpcomingEventsForCities(db: D1Database, o: MultiCityOptions): Promise<EventRow[]> {
+  const w = buildMultiCityWhere(o);
+  if (!w) return [];
+  const limit = Math.min(Math.max(o.limit ?? 100, 1), MAX_LIMIT);
+  const sql = `SELECT ${EVENT_COLS}, 1 AS series_count, NULL AS series_image
+    FROM events e JOIN venues v ON v.id = e.venue_id WHERE ${w.sql} ${ORDER} LIMIT ?`;
+  const { results } = await db.prepare(sql).bind(...w.binds, limit).all<RawEvent>();
+  return results.map(mapEvent);
+}
+
+export async function countUpcomingEventsForCities(db: D1Database, o: MultiCityOptions): Promise<number> {
+  const w = buildMultiCityWhere(o);
+  if (!w) return 0;
+  const row = await db
+    .prepare(`SELECT COUNT(*) AS n FROM events e JOIN venues v ON v.id = e.venue_id WHERE ${w.sql}`)
+    .bind(...w.binds)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
 // ---------------------------------------------------------------- venues
 
 export interface VenueListOptions {

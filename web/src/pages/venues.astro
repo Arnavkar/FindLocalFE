@@ -2,6 +2,8 @@
 // Alphabetical venue directory for the cookie city, with a map.
 import Layout from '../layouts/Layout.astro';
 import VenueMap from '../components/VenueMap.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import CityLinks from '../components/CityLinks.astro';
 import { getDb, listVenues } from '../lib/db.js';
 import { SITE } from '@findlocal/shared';
 import { cleanText, truncate } from '../lib/format.js';
@@ -11,6 +13,7 @@ const venues = await listVenues(getDb(), { city: city.name, withUpcoming: true }
 const active = venues.filter((v) => v.upcoming > 0);
 const rest = venues.filter((v) => v.upcoming === 0);
 const jsonAlternate = `${SITE}/api/venues?city=${encodeURIComponent(city.name)}`;
+const crumbs = [{ name: 'Home', path: '/' }, { name: `Events in ${city.name}`, path: `/city/${city.slug}` }, { name: 'Venues', path: '/venues' }];
 ---
 <Layout
   title={`Venues in ${city.name}`}
@@ -18,10 +21,18 @@ const jsonAlternate = `${SITE}/api/venues?city=${encodeURIComponent(city.name)}`
   jsonAlternate={jsonAlternate}
   wide
 >
+  <Breadcrumbs crumbs={crumbs} />
   <h1>Venues in {city.name}</h1>
-  <p class="lede">{venues.length} venues whose calendars feed Find Local. Pick a spot to see everything it has coming up.</p>
-  <VenueMap venues={active} city={city} />
-  <h2 class="section">With upcoming events</h2>
+  <p class="lede">{venues.length} venues whose calendars feed Find Local. Pick a spot to see everything it has coming up, or <a href={`/city/${city.slug}`}>browse all upcoming events in {city.name}</a>. Use the city picker in the header to switch metros.</p>
+  {venues.length === 0 ? (
+    <>
+      <p class="empty">No venues listed for {city.name} yet — it's a new metro and onboarding is in progress. Pick another city below.</p>
+      <CityLinks current={city.slug} heading="Venues by city" />
+    </>
+  ) : (
+    <VenueMap venues={active} city={city} />
+  )}
+  {active.length > 0 && <h2 class="section">With upcoming events</h2>}
   <ul class="venue-list">
     {active.map((v) => (
       <li>

@@ -1,0 +1,113 @@
+---
+// /developers/mcp — reference for the findlocal-mcp Worker (workers/mcp).
+// Tool table mirrors workers/mcp/src/mcp.ts; keep them in sync.
+import Layout from '../../layouts/Layout.astro';
+import DocsNav from '../../components/DocsNav.astro';
+import { CATEGORIES, CITIES } from '@findlocal/shared';
+export const prerender = true;
+const MCP_URL = 'https://mcp.findlocal.community/mcp';
+const tools: [string, string, string][] = [
+  ['search_events', 'The primary tool. Upcoming events in a city, filtered every way the site can filter. Returns { city, total_matched, returned, events }.', 'city (required; name or slug) · region · when (anytime | today | tomorrow | weekend | week) · date_from / date_to (YYYY-MM-DD) · category (slug or a genre word like "jazz") · free_only · price_max (USD) · time_of_day (morning | afternoon | evening) · query · limit (1–200, default 50)'],
+  ['get_event', 'Full detail for one event, including its description. Past and delisted events still come back, flagged expired / delisted.', 'id'],
+  ['list_venues', 'Active venues in a city or region with address, coordinates and upcoming counts.', 'city (required) · region · limit (≤ 500)'],
+  ['get_venue', 'One venue by id, or a fuzzy name search returning up to 5 matches.', 'id, or name (+ optional city)'],
+  ['list_categories', 'The category slugs search_events accepts, with the number of upcoming events in each for a city.', 'city (required)'],
+  ['get_events_at_venue', 'Upcoming events at one venue.', 'venue_id · limit (≤ 100, default 20)'],
+  ['get_usage', 'This account\'s calls used and remaining this month. Not metered.', '—'],
+];
+---
+<Layout title="MCP server reference" description="Connect FindLocal's MCP server to Claude, Cursor, Claude Code or any MCP client: endpoint, OAuth and account keys, quotas, and every tool with its inputs." canonicalPath="/developers/mcp">
+  <div class="docs">
+    <DocsNav current="/developers/mcp" title="MCP server" />
+    <h1>MCP server</h1>
+    <p class="lede">FindLocal runs a remote <a href="https://modelcontextprotocol.io">Model Context Protocol</a> server so an AI assistant can answer "what's on near me?" from live venue calendars, with links back to every event.</p>
+
+    <h2 id="endpoint">Endpoint</h2>
+    <div class="copy-wrap"><button type="button" class="copy-btn" data-copy-target="#mcp-url">Copy</button><pre id="mcp-url"><code>{MCP_URL}</code></pre></div>
+    <ul>
+      <li>Transport: <strong>Streamable HTTP</strong>. A legacy <code>/sse</code> endpoint exists for older clients.</li>
+      <li>Auth: OAuth 2.1 with PKCE and dynamic client registration (<code>/authorize</code>, <code>/token</code>, <code>/register</code>), then a one-field consent page asking for an <a href="#keys">account key</a>.</li>
+      <li>Scope: <code>mcp:read</code>. The server is read-only.</li>
+    </ul>
+
+    <h2 id="clients">Connect a client</h2>
+    <h3>Claude.ai (web and desktop)</h3>
+    <ol>
+      <li>Open <strong>Settings → Connectors → Add custom connector</strong>.</li>
+      <li>Paste <code>{MCP_URL}</code> and save, then <strong>Connect</strong>.</li>
+      <li>Enter an account key on the FindLocal page that opens. In a chat, keep the FindLocal connector toggled on.</li>
+    </ol>
+    <h3>Claude Code</h3>
+    <div class="copy-wrap"><button type="button" class="copy-btn" data-copy-target="#mcp-cli">Copy</button><pre id="mcp-cli"><code>{`claude mcp add --transport http findlocal ${MCP_URL}`}</code></pre></div>
+    <h3>Cursor</h3>
+    <p>Add to <code>~/.cursor/mcp.json</code> (or the project's <code>.cursor/mcp.json</code>) and restart Cursor:</p>
+    <div class="copy-wrap"><button type="button" class="copy-btn" data-copy-target="#mcp-cursor">Copy</button><pre id="mcp-cursor"><code>{`{
+  "mcpServers": {
+    "findlocal": { "url": "${MCP_URL}" }
+  }
+}`}</code></pre></div>
+    <h3>Any other client</h3>
+    <p>Anything that speaks Streamable HTTP with OAuth works. To poke at the tools without a chat client:</p>
+    <pre><code>{`npx @modelcontextprotocol/inspector
+# transport: Streamable HTTP · URL: ${MCP_URL}`}</code></pre>
+
+    <h2 id="keys">Account keys and quotas</h2>
+    <p>Usage is metered per account key so the service stays healthy. On the consent page:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Key</th><th>Quota</th><th>For</th></tr></thead>
+        <tbody>
+          <tr><td><code>demo-free</code></td><td>100 tool calls / month (shared)</td><td>Trying it out</td></tr>
+          <tr><td><code>demo-pro</code></td><td>10,000 tool calls / month (shared)</td><td>Evaluations</td></tr>
+          <tr><td>Your own key</td><td>Per plan</td><td>Email <a href="mailto:findlocalinternal@gmail.com">findlocalinternal@gmail.com</a> with a sentence about what you're building. No self-serve signup yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Once authorized you won't be asked again for that client. Ask the assistant to run <code>get_usage</code> to see calls used and remaining. When a quota is exhausted, tools return a clear "Monthly quota reached" message instead of partial data. The server stores the account key and a per-month counter — nothing about your conversations.</p>
+
+    <h2 id="tools">Tools</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tool</th><th>What it does</th><th>Inputs</th></tr></thead>
+        <tbody>{tools.map(([t, d, i]) => <tr><td><code>{t}</code></td><td>{d}</td><td>{i}</td></tr>)}</tbody>
+      </table>
+    </div>
+    <p>Categories: {CATEGORIES.map((c, i) => <><code>{c.slug}</code>{i < CATEGORIES.length - 1 ? ', ' : ''}</>)}. Cities can be given by name ("New York") or slug ("new-york"); all {CITIES.length} are listed in the <a href="/developers/api#cities">API reference</a>.</p>
+
+    <h3 id="shape">What an event looks like in a result</h3>
+    <pre><code>{`{
+  "id": "8f9b9068-4e11-466b-a1cc-d36230d28fdd",
+  "title": "Hooley Hour",
+  "date": "2026-09-04",
+  "start_time": "17:00:00",
+  "city": "Boston",
+  "region": "Cambridge",
+  "venue": { "id": "b7716a13-…", "name": "The Lilypad", "address": "1353 Cambridge St, Cambridge, MA 02139" },
+  "category": "music",
+  "category_tags": ["Theater", "Music"],
+  "recurring": true,
+  "upcoming_dates_in_series": 4,
+  "details_url": "https://www.lilypadinman.com/home/2026/hooley-hour-bs5y2-pl4db9",
+  "image": "https://images.squarespace-cdn.com/…/1000016764.jpg",
+  "website": "https://www.lilypadinman.com/",
+  "url": "https://findlocal.community/event/8f9b9068-4e11-466b-a1cc-d36230d28fdd",
+  "source": "scraper_local"
+}`}</code></pre>
+    <p>Empty fields are omitted. <code>date</code> is the venue's local calendar day; <code>price_label</code> is the venue's wording and <code>price_usd</code> our parsed number; <code>is_free</code> is set when we can tell either way.</p>
+
+    <h2 id="prompts">Prompts that work well</h2>
+    <ul>
+      <li>"What's happening in Boston tonight that's free?"</li>
+      <li>"Find comedy shows in Chicago this weekend under $25."</li>
+      <li>"Which bookstores in Providence have author events this month?"</li>
+      <li>"List music venues in Austin's East Side and what's coming up at each."</li>
+      <li>"What categories of events does FindLocal have in Seattle, and how many of each?"</li>
+    </ul>
+    <p>Step-by-step walkthrough: <a href="/blog/findlocal-mcp-server">How to connect FindLocal to Claude, Cursor and other AI assistants</a>.</p>
+  </div>
+</Layout>
+
+<script>
+  import { wireCopyButtons } from '../../lib/copy.js';
+  wireCopyButtons();
+</script>

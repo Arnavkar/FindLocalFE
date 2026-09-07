@@ -1,9 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
 export const prerender = true;
 ---
-<Layout title="About Find Local" description="Why Find Local exists, how it collects events straight from venue calendars across 31 US cities, and how to get in touch." canonicalPath="/about">
+<Layout title="About Find Local" description="Why Find Local exists, how it collects events straight from venue calendars across 47 US cities, and how to get in touch." canonicalPath="/about">
   <article class="prose">
+    <Breadcrumbs crumbs={[{ name: 'Home', path: '/' }, { name: 'About', path: '/about' }]} />
     <h1>About Find Local</h1>
     <p>
       The idea for Find Local is credited to co-founder Alden Harris-McCoy, who, like me, thinks social media no longer serves
@@ -18,7 +20,7 @@ export const prerender = true;
     <h2>So what is Find Local?</h2>
     <p>
       Find Local is a free site for finding the best local events. See what's happening in music, theater, comedy and more
-      across <a href="/">31 US cities</a>, in an ever-expanding catalog that's updated daily. Filter by date, category, price
+      across <a href="/">47 US cities</a>, in an ever-expanding catalog that's updated daily. Filter by date, category, price
       and time of day, browse the <a href="/?view=map">map</a>, or follow a <a href="/venues">venue</a> you love.
       No account needed — saved events live in your own browser.
     </p>
@@ -48,7 +50,7 @@ export const prerender = true;
     <p>
       Of course — it would let us broaden the scope and speed at which we operate. For business inquiries (affiliate links,
       advertising, partnering, data licensing) email <a href="mailto:findlocalinternal@gmail.com">findlocalinternal@gmail.com</a>
-      or see the <a href="/platform">developer platform</a>.
+      or see the <a href="/platform">developer platform</a> and <a href="/developers">developer docs</a>.
     </p>
     <h3>I want to help. How?</h3>
     <p>

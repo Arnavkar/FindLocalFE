@@ -6,6 +6,7 @@
 //   event / venue       3600 s edge
 //   sitemap             86400 s edge
 //   /api/*              300 s edge
+//   /embed/*            600 s edge (widgets; keyed on the full query)
 //   /saved, non-GET, non-2xx: never cached
 
 export interface CachePolicy {
@@ -26,6 +27,7 @@ export function cachePolicyFor(pathname: string): CachePolicy {
   if (pathname.startsWith('/event/') || pathname.startsWith('/venue/')) return { edge: 3600, browser: 300, perCity: false };
   if (pathname === '/sitemap.xml') return { edge: 86400, browser: 3600, perCity: false };
   if (pathname.startsWith('/api/')) return { edge: 300, browser: 60, perCity: false };
+  if (pathname.startsWith('/embed/')) return { edge: 600, browser: 60, perCity: false };
   // Static-ish SSR pages (404, blog fallbacks): short edge TTL.
   return { edge: 600, browser: 300, perCity: false };
 }

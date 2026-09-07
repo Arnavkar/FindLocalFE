@@ -12,6 +12,7 @@ export function getDb(): D1Database {
 export {
   categoryCounts,
   countUpcomingEvents,
+  countUpcomingEventsForCities,
   getEvent,
   getEventsByIds,
   getVenue,
@@ -20,6 +21,7 @@ export {
   listSitemapEvents,
   listSitemapVenues,
   listUpcomingEvents,
+  listUpcomingEventsForCities,
   listUpcomingEventsForVenue,
   listVenues,
   type EventFilters,
