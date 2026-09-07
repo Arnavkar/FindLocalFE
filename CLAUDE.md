@@ -1,6 +1,6 @@
 # FindLocalFE — front doors for FindLocal
 
-**Last updated:** 2026-09-04 (Astro/D1 migration, branch `astro-migration`; Expo app deleted)
+**Last updated:** 2026-09-06 (developers hub, /platform ported to Astro, embeddable widgets + region groups)
 
 FindLocalFE is the **front-doors** workspace for findlocal.community: the public
 website (`web/`, Astro on Cloudflare Workers), its JSON
@@ -25,6 +25,7 @@ shared/               @findlocal/shared — raw TS, no build step (main = src/in
     categories.ts     CATEGORIES, categoryBySlug, slugForToken (parity with FindLocalData/src/categories.py)
     dates.ts          todayIn(tz), addDays, dateRangeFor(when, tz), formatEventDate, formatTime, timeOfDayBucket
     filters.ts        EventFilters + parseFilters(URLSearchParams, city) / canonicalQuery / filtersToQuery
+    regions.ts        REGION_GROUPS (e.g. new-england = 18 metro slugs) for multi-city widgets
     queries.ts        THE ONLY CODE THAT TOUCHES D1 — SELECT helpers, all SQL lives here
     seo.ts            SITE, canonicalUrl, isUuid, redirectTargetFor, GONE_PATHS, IMPACT_SITE_VERIFICATION
     types.ts          EventRow / VenueRow
@@ -36,9 +37,10 @@ web/                  @findlocal/web — Astro 7 SSR Worker (findlocal.community
   src/middleware.ts   301/410 tables, fl_city cookie -> locals.city, Cache API edge cache, X-Robots-Tag
   src/lib/            db.ts (ONLY importer of cloudflare:workers), feed.ts, cacheKey.ts, cacheHeaders.ts,
                       jsonld.ts, ics.ts, format.ts, icons.ts — pure helpers unit-tested in web/test/
-  src/pages/          one file per route in the route table below; about/privacy/terms/blog are prerendered
+  src/pages/          one file per route in the route table below; about/privacy/terms/blog/platform/developers are prerendered
+                      embed/events.astro = the widget iframe page (EmbedLayout, no site chrome); lib/embed.ts = its query contract
   src/content/blog/   markdown posts (Astro content collection)
-  public/             fonts, logo, favicon, og-default, robots/llms, platform.html, _headers
+  public/             fonts, logo, favicon, og-default, robots/llms, widget.js (embed loader), _headers
 ```
 
 ## Commands (root)
@@ -90,7 +92,9 @@ npm run deploy:web               # astro build + wrangler deploy (needs a real S
   params other than the canonical filter keys are stripped; `/?view=map`
   folds into `/`. Trailing slashes are stripped.
 - **URL shapes**: `/event/<uuid>`, `/venue/<uuid>`, `/city/<slug>`, `/venues`,
-  `/about`, `/privacy`, `/terms`, `/blog/*`, `/platform`, `/sitemap.xml`.
+  `/about`, `/privacy`, `/terms`, `/blog/*`, `/platform`, `/developers{,/api,/mcp,/widgets}`,
+  `/embed/events` (widget iframe; `noindex`, `frame-ancestors *`, keyed on its full query),
+  `/widget.js` (static loader), `/sitemap.xml`.
   Uuids are lowercase; case variants **301** to lowercase (`redirectTargetFor`).
 - **301 table** (`redirectTargetFor`): trailing slash → none; uppercase uuid →
   lowercase; `/<city-slug>` → `/city/<slug>`; `/map` → `/?view=map`;
@@ -106,7 +110,7 @@ npm run deploy:web               # astro build + wrangler deploy (needs a real S
   City pages with <3 events → noindex.
 - **robots.txt**: allow all crawlers **including AI/answer engines** (GPTBot,
   ClaudeBot, PerplexityBot …) — blocking them killed GEO visibility; disallow
-  only `/api/`, `/saved`, `/filters`; `Sitemap: https://findlocal.community/sitemap.xml`.
+  only `/api/`, `/embed/`, `/saved`, `/filters`; `Sitemap: https://findlocal.community/sitemap.xml`.
   `noindex` on `/saved`, `/filters`. Keep `public/llms.txt` (site description,
   key pages, URL shapes, city list) current.
 - **Verification meta**: `<meta name="impact-site-verification" value="69cc4690-1595-47a6-9724-1c86ad3258b6">`
