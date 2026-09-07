@@ -1,8 +1,10 @@
 ---
 title: How to Use the FindLocal Events API
-description: A free, no-key JSON API for every upcoming event and venue FindLocal tracks across 31 US cities. Endpoints, filters, response shapes, and examples in curl, JavaScript, and Python.
+description: A free, no-key JSON API for every upcoming event and venue FindLocal tracks across 47 US cities. Endpoints, filters, response shapes, and examples in curl, JavaScript, and Python.
 date: 2026-09-04
 ---
+
+> **Reference:** the up-to-date endpoint, parameter and field tables now live at [/developers/api](/developers/api). This post is the walkthrough.
 
 Every listing page on Find Local has a JSON twin. The same filters you click on the site — city, date, category, price, time of day, neighborhood, search — work as query parameters against `https://findlocal.community/api/events`, and the response is the same data the page renders. There is no API key, no signup, and CORS is open, so you can call it from a browser, a script, a spreadsheet, or a cron job.
 
@@ -39,7 +41,7 @@ The parameters mirror the site's URLs exactly: `/city/boston?cat=music&when=week
 |---|---|---|
 | `city` | Name or slug: `Boston`, `new-york`, `los-angeles` | Defaults to Boston. See [the city list](/llms.txt). |
 | `when` | `anytime` · `today` · `tomorrow` · `weekend` · `week` · `YYYY-MM-DD` | Resolved in the city's time zone. `weekend` is the upcoming Fri–Sun, `week` the next 7 days. Default `anytime` (everything upcoming). |
-| `cat` | Comma list of slugs, or repeated (`cat=music&cat=comedy`) | `music`, `comedy`, `theater`, `dance`, `art`, `food_drink`, `family`, `market`, `workshop`, `fitness`, `nightlife`, `community`, `festival`, `parks` |
+| `cat` | Comma list of slugs, or repeated (`cat=music&cat=comedy`) | `music`, `comedy`, `theater`, `dance`, `art`, `food_drink`, `family`, `market`, `workshop`, `fitness`, `nightlife`, `community`, `festival`, `parks`, `literary` |
 | `free` | `1` | Only free events ($0 or labelled free) |
 | `paid` | `1` | Only ticketed events. `free=1&paid=1` returns both. |
 | `max` | Number (USD) | Max ticket price. Events without a parsed price are excluded. |
@@ -178,7 +180,7 @@ curl 'https://findlocal.community/api/events?city=austin&page=2'
 
 - Responses are cached at the edge for **5 minutes** and in your browser for **1 minute** (`Cache-Control: public, max-age=60, s-maxage=300`). Polling faster than that just returns the cached copy.
 - Listings update as venues are re-scraped, typically **daily**. `last_seen_at` tells you the last time we saw an event on its source page.
-- Coverage is 31 US metros. The full list is in [llms.txt](/llms.txt) and on the [city pages](/venues).
+- Coverage is 47 US metros. The full list is in [llms.txt](/llms.txt) and on the [city pages](/venues).
 - Every listing page also advertises its JSON twin with `<link rel="alternate" type="application/json">`, so you can discover the API URL for any filtered view from the page itself.
 - The API is free and unauthenticated. Please cache on your side, keep request rates reasonable, and link back to the event's Find Local page or the venue's own site. It's a small project; if you're building something that needs volume or guarantees, email **findlocalinternal@gmail.com** and we'll sort something out.
 - Field names are stable but the API is not formally versioned. New fields may appear; existing ones won't be renamed without notice on this blog.

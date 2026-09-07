@@ -1,0 +1,165 @@
+---
+// /developers/api — reference for the public JSON API served by this site
+// (web/src/pages/api/*). Category and city lists come from the shared data.
+import Layout from '../../layouts/Layout.astro';
+import DocsNav from '../../components/DocsNav.astro';
+import { CATEGORIES, CITIES } from '@findlocal/shared';
+export const prerender = true;
+const BASE = 'https://findlocal.community';
+const eventFields: [string, string, string][] = [
+  ['id', 'uuid', 'Stable event id; public page at /event/<id>, iCalendar at /event/<id>/calendar.ics'],
+  ['title', 'string', ''],
+  ['description', 'string | null', 'Often an HTML fragment from the source'],
+  ['event_date', 'YYYY-MM-DD', 'Plain calendar day in the venue\'s time zone. Do not new Date() it.'],
+  ['start_time / end_time', 'HH:MM:SS | null', '24-hour local time'],
+  ['city', 'string', 'Metro partition, e.g. "Boston", "Portland ME"'],
+  ['region', 'string | null', 'Neighborhood / borough / town, e.g. "Brooklyn", "Cambridge"'],
+  ['category', 'slug | null', 'One of the category slugs below'],
+  ['event_type', 'string[]', 'The venue\'s own genre tags'],
+  ['price', 'string | null', 'Raw label from the venue ("$15 adv / $20 door", "Free")'],
+  ['price_amount', 'number | null', 'Parsed USD amount when we could parse one'],
+  ['status', 'string | null', ''],
+  ['detail_page_url / ticket_page_url / root_url', 'url | null', 'Links on the venue\'s site'],
+  ['image_url', 'url | null', ''],
+  ['is_deleted', '0 | 1', '1 = the venue stopped listing it (only visible via ids= and /api/events/<id>)'],
+  ['first_seen_at / last_seen_at / updated_at', 'ISO timestamp', 'When we first / last saw it on the source'],
+  ['source', 'string', 'scraper_cloudflare, scraper_static, ticketmaster, seatgeek, recurring, …'],
+  ['venue_id, venue_name, venue_address, venue_lat, venue_lng, venue_url, venue_type, venue_region, venue_image', '', 'Joined venue columns'],
+  ['series_count', 'number', '> 1 when the same title has that many upcoming dates at this venue (recurring)'],
+  ['series_image', 'url | null', 'First image in the series, when series_count > 1'],
+];
+const venueFields: [string, string][] = [
+  ['id', 'uuid; public page at /venue/<id>'],
+  ['name, city, region, address', ''],
+  ['url', 'The venue\'s website'],
+  ['description, image, type, venue_size', ''],
+  ['categories', 'string[] of category slugs'],
+  ['latitude, longitude', 'number | null'],
+  ['is_active', '0 | 1'],
+  ['upcoming', 'Count of upcoming non-deleted events'],
+];
+---
+<Layout title="JSON API reference" description="Reference for FindLocal's free events JSON API: /api/events, /api/events/<id>, /api/venues. Filters, response shapes, field definitions, caching and examples." canonicalPath="/developers/api">
+  <div class="docs">
+    <DocsNav current="/developers/api" title="JSON API" />
+    <h1>JSON API</h1>
+    <p class="lede">Every listing page on FindLocal has a JSON twin. No key, no signup, CORS open, <code>GET</code> only. Base URL <code>{BASE}</code>.</p>
+
+    <h2 id="endpoints">Endpoints</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Endpoint</th><th>Returns</th></tr></thead>
+        <tbody>
+          <tr><td><code>GET /api/events</code></td><td>Upcoming events in one city, filtered and paginated. <code>{'{ data: Event[], meta: { city, count, total, page, page_size } }'}</code></td></tr>
+          <tr><td><code>GET /api/events/&lt;uuid&gt;</code></td><td>One event, including past and delisted ones. <code>{'{ data: Event }'}</code> or <code>404 {'{ error: "not found" }'}</code></td></tr>
+          <tr><td><code>GET /api/venues</code></td><td>Active venues in one city with upcoming counts. <code>{'{ data: Venue[], meta: { city, count } }'}</code></td></tr>
+          <tr><td><code>GET /event/&lt;uuid&gt;/calendar.ics</code></td><td>iCalendar file for one event (<code>text/calendar</code>)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="quickstart">Quick start</h2>
+    <div class="copy-wrap"><button type="button" class="copy-btn" data-copy-target="#ex-curl">Copy</button><pre id="ex-curl"><code>{`# Live music in Boston this week
+curl '${BASE}/api/events?city=boston&cat=music&when=week&limit=5'
+
+# Free things in Brooklyn this weekend, evenings only
+curl '${BASE}/api/events?city=new-york&region=Brooklyn&when=weekend&free=1&tod=evening'
+
+# Literary events in Providence
+curl '${BASE}/api/events?city=providence&cat=literary'
+
+# Every active venue in Chicago
+curl '${BASE}/api/venues?city=chicago'`}</code></pre></div>
+
+    <h2 id="filters">Filtering <code>/api/events</code></h2>
+    <p>The parameters mirror the site's URLs exactly: <code>/city/boston?cat=music&amp;when=weekend</code> on the site is <code>/api/events?city=boston&amp;cat=music&amp;when=weekend</code> on the API. Unknown values are ignored rather than rejected; check <code>meta.total</code> if a filter seems to do nothing.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Parameter</th><th>Values</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>city</code></td><td>Name or slug: <code>Boston</code>, <code>new-york</code>, <code>portland-me</code></td><td>Defaults to Boston. <a href="#cities">All {CITIES.length} metros</a>.</td></tr>
+          <tr><td><code>when</code></td><td><code>anytime</code> · <code>today</code> · <code>tomorrow</code> · <code>weekend</code> · <code>week</code> · <code>YYYY-MM-DD</code></td><td>Resolved in the city's time zone. <code>weekend</code> = upcoming Fri–Sun, <code>week</code> = next 7 days. Default <code>anytime</code>.</td></tr>
+          <tr><td><code>cat</code></td><td>Comma list of slugs, or repeated (<code>cat=music&amp;cat=comedy</code>)</td><td><a href="#categories">Category slugs</a></td></tr>
+          <tr><td><code>free</code></td><td><code>1</code></td><td>Only free events ($0 or labelled free)</td></tr>
+          <tr><td><code>paid</code></td><td><code>1</code></td><td>Only ticketed events. <code>free=1&amp;paid=1</code> returns both.</td></tr>
+          <tr><td><code>max</code></td><td>Number (USD)</td><td>Maximum parsed ticket price; events without a parsed price are excluded</td></tr>
+          <tr><td><code>tod</code></td><td>Comma list of <code>morning</code>, <code>afternoon</code>, <code>evening</code></td><td>Time of day of the start time</td></tr>
+          <tr><td><code>region</code></td><td>Neighborhood label, e.g. <code>Brooklyn</code>, <code>Cambridge</code></td><td>Exact match. Use <code>/api/venues</code> to see the labels a city uses.</td></tr>
+          <tr><td><code>q</code></td><td>Free text, ≤ 100 chars</td><td>Matches event title and venue name</td></tr>
+          <tr><td><code>page</code></td><td>1-based</td><td>100 events per page by default</td></tr>
+          <tr><td><code>limit</code></td><td>1–500</td><td>Overrides the page size</td></tr>
+          <tr><td><code>venue</code></td><td>Venue uuid</td><td>Upcoming events at one venue</td></tr>
+          <tr><td><code>ids</code></td><td>Comma list of ≤ 200 event uuids</td><td>Bypasses every other filter; any date, delisted included</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note"><p><strong>Region vs. region group.</strong> <code>region</code> here is a neighborhood inside one city. Multi-metro areas such as New England are a <a href="/developers/widgets#regions">widget</a> concept; to cover one with the API, call it once per city.</p></div>
+
+    <h2 id="events">Event fields</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>{eventFields.map(([f, t, n]) => <tr><td><code>{f}</code></td><td>{t}</td><td>{n}</td></tr>)}</tbody>
+      </table>
+    </div>
+    <p>Booleans are <code>0</code>/<code>1</code>, straight from the database. <code>/api/events</code> never returns <code>is_deleted: 1</code> rows; <code>/api/events/&lt;id&gt;</code> and <code>ids=</code> do, so you can render an honest "no longer listed" state.</p>
+
+    <h2 id="venues">Venue fields</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+        <tbody>{venueFields.map(([f, n]) => <tr><td><code>{f}</code></td><td>{n}</td></tr>)}</tbody>
+      </table>
+    </div>
+    <p><code>/api/venues</code> accepts <code>city</code> and an optional <code>region</code>.</p>
+
+    <h2 id="categories">Categories</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Slug</th><th>Label</th></tr></thead>
+        <tbody>{CATEGORIES.map((c) => <tr><td><code>{c.slug}</code></td><td>{c.label}</td></tr>)}</tbody>
+      </table>
+    </div>
+
+    <h2 id="cities">Cities ({CITIES.length})</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Slug</th><th>Name</th><th>State</th><th>Time zone</th></tr></thead>
+        <tbody>{CITIES.map((c) => <tr><td><code>{c.slug}</code></td><td>{c.name}</td><td>{c.state}</td><td>{c.tz}</td></tr>)}</tbody>
+      </table>
+    </div>
+
+    <h2 id="examples">Examples</h2>
+    <h3>JavaScript</h3>
+    <pre><code>{`const params = new URLSearchParams({ city: 'seattle', when: 'weekend', cat: 'comedy,music', limit: '50' });
+const res = await fetch(\`${BASE}/api/events?\${params}\`);
+const { data, meta } = await res.json();
+console.log(\`\${meta.total} events this weekend\`);
+for (const e of data) console.log(\`\${e.event_date} \${e.start_time ?? ''} · \${e.title} @ \${e.venue_name}\`);`}</code></pre>
+    <h3>Python</h3>
+    <pre><code>{`import requests
+
+r = requests.get("${BASE}/api/events", params={"city": "denver", "when": "today", "free": "1"}, timeout=15)
+r.raise_for_status()
+for e in r.json()["data"]:
+    print(e["event_date"], e["start_time"], e["title"], "—", e["venue_name"])`}</code></pre>
+    <h3>Paging</h3>
+    <pre><code>{`curl '${BASE}/api/events?city=austin&page=1'
+curl '${BASE}/api/events?city=austin&page=2'   # until data comes back empty`}</code></pre>
+
+    <h2 id="caching">Caching, status codes, fair use</h2>
+    <ul>
+      <li><code>Cache-Control: public, max-age=60, s-maxage=300</code> — cached 5 minutes at the edge, 1 minute in the browser.</li>
+      <li><code>200</code> with <code>{'{ data }'}</code>; <code>404 {'{ error }'}</code> for an unknown event id; <code>OPTIONS</code> answers <code>204</code> for preflight.</li>
+      <li>Responses carry <code>X-Robots-Tag: noindex</code>; the HTML pages are what should rank.</li>
+      <li>Free and unauthenticated. Cache on your side, keep rates reasonable, link back to the event's FindLocal page or the venue. Volume or guarantees: <a href="mailto:findlocalinternal@gmail.com">findlocalinternal@gmail.com</a>.</li>
+      <li>Every listing page advertises its JSON twin with <code>&lt;link rel="alternate" type="application/json"&gt;</code>.</li>
+    </ul>
+    <p>Walkthrough with more examples: <a href="/blog/findlocal-events-api">How to use the FindLocal Events API</a>.</p>
+  </div>
+</Layout>
+
+<script>
+  import { wireCopyButtons } from '../../lib/copy.js';
+  wireCopyButtons();
+</script>

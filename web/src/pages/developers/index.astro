@@ -1,0 +1,60 @@
+---
+// /developers — hub for the three ways to get FindLocal data out: JSON API,
+// MCP server, embeddable widgets. Facts (metro count, categories, cities) are
+// rendered from the vendored data so they never go stale.
+import Layout from '../../layouts/Layout.astro';
+import DocsNav from '../../components/DocsNav.astro';
+import { CATEGORIES, CITIES, REGION_GROUPS } from '@findlocal/shared';
+export const prerender = true;
+const n = CITIES.length;
+---
+<Layout title="Developers" description={`Three ways to use FindLocal's curated local event data in your own product: a free JSON API, an MCP server for AI assistants, and embeddable widgets. ${n} US metros, updated daily.`} canonicalPath="/developers">
+  <div class="docs">
+    <DocsNav current="/developers" title="Developers" />
+    <h1>Build with FindLocal data</h1>
+    <p class="lede">Every upcoming event and venue FindLocal tracks — {n} US metros, thousands of venues, pulled from venue calendars and updated daily — is available three ways. All three read the same database, so they always agree.</p>
+
+    <div class="cards">
+      <a class="card-link" href="/developers/api"><h3>JSON API</h3><p>Free, no key, CORS open. The same filters as the site's URLs: city, date, category, price, time of day, neighborhood, search.</p></a>
+      <a class="card-link" href="/developers/mcp"><h3>MCP server</h3><p>Let Claude, Cursor or any MCP client answer "what's on near me?" from live data. OAuth with a metered account key.</p></a>
+      <a class="card-link" href="/developers/widgets"><h3>Embeddable widgets</h3><p>One script tag drops a list, calendar and map of live events onto any page. Region and category presets, light or dark.</p></a>
+    </div>
+
+    <h2 id="which">Which one?</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>You are building…</th><th>Use</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>An app, newsletter, dashboard or script</td><td><a href="/developers/api">JSON API</a></td><td>Plain HTTPS GET, stable field names, 5-minute edge cache.</td></tr>
+          <tr><td>An AI assistant, agent or chatbot</td><td><a href="/developers/mcp">MCP server</a></td><td>Seven tools with typed inputs; the model picks the right one.</td></tr>
+          <tr><td>A venue, bookstore, library, newspaper or community site</td><td><a href="/developers/widgets">Widget</a></td><td>No code beyond a script tag; keeps itself current.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="data">What the data looks like</h2>
+    <p>An <strong>event</strong> has a title, a plain calendar day (<code>event_date</code>) and optional start time in the venue's time zone, a category slug, the venue's own genre tags, a price label plus our parsed dollar amount, links to the detail and ticket pages, an image, and the venue it belongs to (name, address, coordinates). A <strong>venue</strong> has a name, city and neighborhood, address, coordinates, type, categories and an upcoming-event count. Field-by-field reference: <a href="/developers/api#events">event fields</a>, <a href="/developers/api#venues">venue fields</a>.</p>
+
+    <h3 id="categories">Categories</h3>
+    <p>{CATEGORIES.map((c, i) => <><code>{c.slug}</code>{i < CATEGORIES.length - 1 ? ', ' : ''}</>)}</p>
+
+    <h3 id="cities">Metros ({n})</h3>
+    <p>Pass a city by name or slug. {CITIES.map((c, i) => <><a href={`/city/${c.slug}`}>{c.name}</a>{i < n - 1 ? ' · ' : ''}</>)}</p>
+    <p>Widgets can also target a <strong>region group</strong> — several metros at once: {REGION_GROUPS.map((g) => <><code>{g.slug}</code> ({g.cities.length} metros)</>)}. Region groups are a widget concept; the API and MCP tools are per-city.</p>
+
+    <h2 id="freshness">Freshness, caching and fair use</h2>
+    <ul>
+      <li>Venue calendars are re-scraped on a schedule (typically daily). <code>last_seen_at</code> is the last time we saw an event on its source page; delisted events are retired rather than deleted.</li>
+      <li>API responses are cached at the edge for 5 minutes, widget pages for 10. Polling faster only returns the cached copy.</li>
+      <li>The API and widgets are free and unauthenticated. Cache on your side, keep request rates reasonable, and keep the link back to FindLocal or the venue. For volume or guarantees, email <a href="mailto:findlocalinternal@gmail.com">findlocalinternal@gmail.com</a>.</li>
+      <li>Field names are stable but not formally versioned; new fields may appear, existing ones won't be renamed without notice on the <a href="/blog">blog</a>.</li>
+    </ul>
+
+    <h2 id="more">More</h2>
+    <ul>
+      <li><a href="/platform">The platform overview</a> — the pitch for teams evaluating the data.</li>
+      <li><a href="/blog/how-find-local-finds-events">How Find Local finds events the big platforms miss</a> — where the data comes from.</li>
+      <li><a href="/llms.txt">llms.txt</a> — a machine-readable summary of the site for answer engines.</li>
+    </ul>
+  </div>
+</Layout>

@@ -2,7 +2,7 @@
 // Site shell: <head> parity with the Expo-era inject-head.js (title/description/
 // OG/Twitter/theme-color/impact-site-verification), self-hosted Epilogue +
 // Manrope, brand tokens as RGB triplets (src/theme/colors.ts) with dark values
-// under prefers-color-scheme, header with city picker, footer with all 31 city
+// under prefers-color-scheme, header with city picker, footer with every city
 // links. JSON-LD goes through <slot name="head">.
 import { CITIES, IMPACT_SITE_VERIFICATION, SITE, canonicalUrl } from '@findlocal/shared';
 import CityLinks from '../components/CityLinks.astro';
@@ -28,7 +28,7 @@ interface Props {
 }
 const {
   title,
-  description = 'Discover the best local events near you. Browse concerts, comedy shows, live music, theater, and cultural experiences across 31 US cities. Free and paid events updated daily.',
+  description = 'Discover the best local events near you. Browse concerts, comedy shows, live music, theater, and cultural experiences across 47 US cities. Free and paid events updated daily.',
   canonicalPath = Astro.url.pathname,
   canonicalQuery = '',
   noindex = false,
@@ -47,6 +47,7 @@ const nav = [
   { href: '/', label: 'Discover', active: path === '/' || path.startsWith('/city/') || path.startsWith('/event/') },
   { href: '/venues', label: 'Venues', active: path === '/venues' || path.startsWith('/venue/') },
   { href: '/blog', label: 'Blog', active: path.startsWith('/blog') },
+  { href: '/developers', label: 'Developers', active: path.startsWith('/developers') || path === '/platform' },
   { href: '/about', label: 'About', active: path === '/about' },
 ];
 const searchAction = city ? `/city/${city.slug}` : '/';
@@ -119,7 +120,8 @@ const searchAction = city ? `/city/${city.slug}` : '/';
           <a href="/about">About</a>
           <a href="/privacy">Privacy</a>
           <a href="/terms">Terms</a>
-          <a href="/platform">Platform &amp; API</a>
+          <a href="/platform">Platform</a>
+          <a href="/developers">Developers</a>
           <a href="/saved">Saved</a>
         </nav>
         <p class="disclaimer">
