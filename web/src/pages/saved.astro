@@ -3,8 +3,10 @@
 // from /api/events?ids=. Noindex (robots.txt disallows it too).
 import Layout from '../layouts/Layout.astro';
 import Icon from '../components/Icon.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
 ---
 <Layout title="Saved events" description="Events you've saved on this device." noindex>
+  <Breadcrumbs crumbs={[{ name: 'Home', path: '/' }, { name: 'Saved events', path: '/saved' }]} />
   <h1>Saved events</h1>
   <p class="lede">Saved events live only in this browser — nothing is sent to us. Tap <Icon name="heart" size={16} /> Save on any event to add it here.</p>
   <div id="saved" aria-live="polite"><p class="muted">Loading your saved events…</p></div>

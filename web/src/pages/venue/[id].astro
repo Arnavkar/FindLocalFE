@@ -1,6 +1,7 @@
 ---
 // /venue/<uuid>: Place JSON-LD + upcoming list; unknown or inactive -> 404.
 import Layout from '../../layouts/Layout.astro';
+import BackLink from '../../components/BackLink.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import EventList from '../../components/EventList.astro';
 import JsonLd from '../../components/JsonLd.astro';
@@ -41,6 +42,7 @@ const mapsHref = venue?.address ? `https://www.google.com/maps/search/?api=1&que
   >
     <JsonLd data={[venueJsonLd(venue, description), breadcrumbJsonLd(crumbs)]} slot="head" />
     <Breadcrumbs crumbs={crumbs} />
+    <BackLink href="/venues" label={city ? `All venues in ${city.name}` : 'All venues'} />
     <header class="venue-head">
       {venue.image && <img class="photo" src={venue.image} alt="" width="240" height="240" decoding="async" fetchpriority="high" />}
       <div>

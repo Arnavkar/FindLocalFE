@@ -1,0 +1,33 @@
+---
+// "← Back to …" link above detail pages. Plain anchor to `href` (works without
+// JS and for direct visits); when the visitor arrived from another page on
+// this site it goes back in history instead, so filters and scroll survive.
+import Icon from './Icon.astro';
+interface Props {
+  href: string;
+  label: string;
+}
+const { href, label } = Astro.props;
+---
+<a class="back-link" href={href} data-back-link>
+  <Icon name="arrow-back" size={16} />
+  <span>{label}</span>
+</a>
+
+<script>
+  document.querySelectorAll<HTMLAnchorElement>('[data-back-link]').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      let sameSite = false;
+      try { sameSite = !!document.referrer && new URL(document.referrer).origin === location.origin; } catch {}
+      if (sameSite && history.length > 1) {
+        e.preventDefault();
+        history.back();
+      }
+    });
+  });
+</script>
+
+<style>
+  .back-link { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.88rem; font-weight: 600; color: rgb(var(--text-2)); margin: 0 0 0.6rem; }
+  .back-link:hover { color: rgb(var(--teal)); text-decoration: none; }
+</style>

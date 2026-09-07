@@ -1,11 +1,13 @@
 ---
 import { getCollection } from 'astro:content';
 import Layout from '../../layouts/Layout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
 export const prerender = true;
 const posts = (await getCollection('blog', (p) => !p.data.draft)).sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 ---
 <Layout title="Blog" description="Guides and writing about local event discovery: how Find Local finds events, city venue guides, and how to actually go out more." canonicalPath="/blog">
+  <Breadcrumbs crumbs={[{ name: 'Home', path: '/' }, { name: 'Blog', path: '/blog' }]} />
   <h1>Blog</h1>
   <p class="lede">Guides and notes on finding the good stuff in your city.</p>
   <ul class="posts">

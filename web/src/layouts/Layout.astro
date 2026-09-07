@@ -108,6 +108,11 @@ const searchAction = city ? `/city/${city.slug}` : '/';
           <span class="saved-count" data-saved-count hidden></span>
         </a>
       </div>
+      <nav class="nav-mobile" aria-label="Primary (mobile)">
+        {nav.map((n) => (
+          <a href={n.href} aria-current={n.active ? 'page' : undefined}>{n.label}</a>
+        ))}
+      </nav>
     </header>
     <main id="main" tabindex="-1" class:list={{ wide }}>
       <slot />
@@ -285,9 +290,16 @@ const searchAction = city ? `/city/${city.slug}` : '/';
   .saved-link { margin-left: auto; position: relative; width: 40px; height: 40px; border: 1px solid rgb(var(--border)); border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; color: rgb(var(--teal)); flex-shrink: 0; }
   .saved-link:hover { text-decoration: none; background: rgb(var(--teal) / 0.08); }
   .saved-count { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: rgb(var(--teal)); color: rgb(var(--text-inverse)); font-size: 10px; font-weight: 700; line-height: 18px; text-align: center; border: 2px solid rgb(var(--bg)); }
+  /* Phones: the primary links live in a scrollable row under the bar (the
+     desktop .nav is hidden there and the footer is a long way down). */
+  .nav-mobile { display: flex; gap: 0.25rem; padding: 0 0.6rem 0.5rem; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .nav-mobile::-webkit-scrollbar { display: none; }
+  .nav-mobile a { flex-shrink: 0; padding: 0.3rem 0.75rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; color: rgb(var(--text-2)); border: 1px solid transparent; }
+  .nav-mobile a[aria-current='page'] { color: rgb(var(--teal)); background: rgb(var(--teal) / 0.08); border-color: rgb(var(--teal) / 0.25); }
   @media (min-width: 760px) {
     .search { display: flex; }
     .nav { display: flex; }
+    .nav-mobile { display: none; }
     .saved-link { margin-left: 0; }
   }
 
@@ -325,7 +337,8 @@ const searchAction = city ? `/city/${city.slug}` : '/';
 
   /* Event grid + cards */
   .day-group { margin: 1.5rem 0 0; }
-  .day-header { font-family: var(--font-head); font-size: 1.05rem; font-weight: 700; color: rgb(var(--teal)); margin: 0 0 0.8rem; padding-bottom: 0.4rem; border-bottom: 1px solid rgb(var(--border)); position: sticky; top: 60px; background: rgb(var(--bg)); z-index: 5; }
+  .day-header { font-family: var(--font-head); font-size: 1.05rem; font-weight: 700; color: rgb(var(--teal)); margin: 0 0 0.8rem; padding-bottom: 0.4rem; border-bottom: 1px solid rgb(var(--border)); position: sticky; top: 96px; background: rgb(var(--bg)); z-index: 5; }
+  @media (min-width: 760px) { .day-header { top: 60px; } }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.25rem 1rem; }
   .card { display: block; color: inherit; }
   .card:hover { text-decoration: none; }

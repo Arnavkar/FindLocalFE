@@ -35,14 +35,18 @@ const { title, theme, homeHref } = Astro.props;
     </div>
     <script>
       // Resize beacon: the host page's widget.js listens for this and sizes the iframe.
+      // Measure the content wrapper, not documentElement: inside an iframe the
+      // document is never shorter than the viewport, so the widget could grow
+      // but never shrink.
+      const wrap = document.querySelector<HTMLElement>('.fl-widget');
       const post = () => {
-        if (window.parent === window) return;
-        const height = document.documentElement.scrollHeight;
+        if (window.parent === window || !wrap) return;
+        const height = Math.ceil(wrap.getBoundingClientRect().height);
         window.parent.postMessage({ type: 'findlocal:resize', height }, '*');
       };
       window.addEventListener('load', post);
       document.addEventListener('fl:resize', post);
-      if ('ResizeObserver' in window) new ResizeObserver(post).observe(document.documentElement);
+      if ('ResizeObserver' in window && wrap) new ResizeObserver(post).observe(wrap);
       else {
         let n = 0;
         const t = setInterval(() => { post(); if (++n > 20) clearInterval(t); }, 500);
