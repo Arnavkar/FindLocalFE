@@ -13,6 +13,8 @@ export const V = {
   brighton: '33333333-3333-4333-8333-333333333333', // New York, Brooklyn
   mercury: '44444444-4444-4444-8444-444444444444', // New York, Manhattan
   closed: '55555555-5555-4555-8555-555555555555', // Boston, inactive
+  athenaeum: '66666666-6666-4666-8666-666666666666', // Providence, RI
+  longfellow: '77777777-7777-4777-8777-777777777777', // Portland ME
 };
 
 interface Ev {
@@ -94,6 +96,17 @@ for (let i = 0; i < 12; i++) {
   ev({ venue: i % 2 ? V.mercury : V.brighton, city: 'New York', region: i % 2 ? 'Manhattan' : 'Brooklyn', title: `NYC Filler ${i}`, date: D(i + 1), time: '20:00', category: i % 3 === 0 ? 'art' : 'music', price: '$25', price_amount: 25 });
 }
 
+// New England literary fixture (region-group / multi-city queries).
+ev({ venue: V.sinclair, city: 'Boston', region: 'Cambridge', title: 'Poetry Reading', date: D(3), time: '19:00', category: 'literary', event_type: ['poetry'], price: 'Free', price_amount: 0 });
+ev({ venue: V.athenaeum, city: 'Providence', region: 'Providence', title: 'Author Talk: Debut Novel', date: D(2), time: '18:00', category: 'literary', event_type: ['author talk'], price: 'Free', price_amount: 0 });
+ev({ venue: V.athenaeum, city: 'Providence', region: 'Providence', title: 'Book Club', date: D(5), time: '18:30', category: 'literary', event_type: ['book club'] });
+ev({ venue: V.athenaeum, city: 'Providence', region: 'Providence', title: 'Cancelled Signing', date: D(9), time: '18:00', category: 'literary', deleted: true });
+ev({ venue: V.athenaeum, city: 'Providence', region: 'Providence', title: 'Athenaeum Concert', date: D(4), time: '20:00', category: 'music' });
+ev({ venue: V.longfellow, city: 'Portland ME', region: 'Portland', title: 'Longfellow Lecture', date: D(2), time: '19:00', category: 'literary', event_type: ['author event'] });
+ev({ venue: V.longfellow, city: 'Portland ME', region: 'Portland', title: 'Story Hour', date: D(5), time: '10:00', category: 'literary', event_type: ['storytelling'], price: 'Free', price_amount: 0 });
+ev({ venue: V.longfellow, city: 'Portland ME', region: 'Portland', title: 'Writers Workshop', date: D(9), time: '18:00', category: 'literary', event_type: ['writing'] });
+ev({ venue: V.mercury, city: 'New York', region: 'Manhattan', title: 'NYC Poetry Slam', date: D(2), time: '20:00', category: 'literary', event_type: ['poetry'] });
+
 export async function seed(db: D1Database): Promise<void> {
   const venues = [
     [V.sinclair, 'The Sinclair', 'Boston', 'Cambridge', 'https://sinclair.test', '52 Church St, Cambridge, MA', 'https://img/sinclair.jpg', 'music venue', '["music","nightlife"]', 42.373, -71.119, 1],
@@ -101,6 +114,8 @@ export async function seed(db: D1Database): Promise<void> {
     [V.brighton, 'Brighton Music Hall', 'New York', 'Brooklyn', null, '3 Brooklyn Ave', null, 'comedy club', '["comedy"]', 40.65, -73.95, 1],
     [V.mercury, 'Mercury Lounge', 'New York', 'Manhattan', 'https://mercury.test', '217 E Houston St', 'https://img/mercury.jpg', 'music venue', '["music"]', 40.72, -73.98, 1],
     [V.closed, 'Closed Club', 'Boston', 'Somerville', null, null, null, 'bar', '[]', null, null, 0],
+    [V.athenaeum, 'Providence Athenaeum', 'Providence', 'Providence', 'https://athenaeum.test', '251 Benefit St, Providence, RI', null, 'library', '["literary"]', 41.826, -71.406, 1],
+    [V.longfellow, 'Longfellow Books', 'Portland ME', 'Portland', 'https://longfellow.test', '1 Monument Way, Portland, ME', null, 'bookstore', '["literary"]', 43.657, -70.258, 1],
   ];
   const vs = db.prepare(
     `INSERT INTO venues (id, name, city, region, url, address, image, type, categories, latitude, longitude, is_active)

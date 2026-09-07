@@ -17,3 +17,9 @@
   Cache-Control: public, max-age=86400
 /favicon.ico
   Cache-Control: public, max-age=86400
+
+# Embeddable widget loader (see /developers/widgets). Third-party pages load
+# it cross-origin; short TTL so loader fixes roll out within the hour.
+/widget.js
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400

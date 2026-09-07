@@ -6,6 +6,7 @@
 # index (a robots block would freeze them as "indexed, though blocked").
 User-agent: *
 Disallow: /api/
+Disallow: /embed/
 Disallow: /saved
 Disallow: /filters
 
