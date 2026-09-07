@@ -1,0 +1,166 @@
+---
+// /developers/widgets — reference + snippet builder + live preview for the
+// embeddable widget (public/widget.js → /embed/events). Static page; the
+// preview iframe is built client-side with the same rules as widget.js.
+import Layout from '../../layouts/Layout.astro';
+import DocsNav from '../../components/DocsNav.astro';
+import { CATEGORIES, CITIES, REGION_GROUPS, regionGroupCities } from '@findlocal/shared';
+import { EMBED_DEFAULT_LIMIT, EMBED_MAX_LIMIT, WIDGET_PRESETS } from '../../lib/embed.js';
+export const prerender = true;
+const SNIPPET = '<script src="https://findlocal.community/widget.js" data-widget="literary-new-england"></script>';
+const attrs: [string, string, string][] = [
+  ['data-widget', Object.keys(WIDGET_PRESETS).join(' · '), 'A preset: expands to a region + category. Explicit attributes override it.'],
+  ['data-region', REGION_GROUPS.map((g) => g.slug).join(' · '), 'A region group (several metros). Wins over data-city.'],
+  ['data-city', 'City slug or name, e.g. boston, portland-me', 'One metro. Defaults to Boston when neither region nor city is set.'],
+  ['data-cat', 'Comma list of category slugs', 'Leave out for all categories.'],
+  ['data-when', 'anytime · today · tomorrow · weekend · week · YYYY-MM-DD', 'Date window, resolved in the local time zone. Default anytime (everything upcoming).'],
+  ['data-view', 'list · calendar · map', 'Initial view; visitors can switch. Default list.'],
+  ['data-theme', 'auto · light · dark', 'auto follows the visitor\'s OS setting. Default auto.'],
+  ['data-limit', `1–${EMBED_MAX_LIMIT}`, `Maximum events loaded. Default ${EMBED_DEFAULT_LIMIT}. Past the limit the widget links to FindLocal for the rest.`],
+  ['data-height', 'Pixels', 'Initial iframe height before the widget reports its real height (default 320).'],
+  ['data-partner', 'Short id, e.g. your site name', 'Added to outbound links as utm_content so you can see referrals in FindLocal\'s stats.'],
+];
+---
+<Layout title="Embeddable widgets" description="Put a live list, calendar and map of local events on any web page with one script tag. Presets like Literary New England, per-city and per-category widgets, light or dark. Snippet builder and live preview." canonicalPath="/developers/widgets" wide>
+  <div class="docs">
+    <DocsNav current="/developers/widgets" title="Widgets" />
+    <h1>Embeddable widgets</h1>
+    <p class="lede">One script tag drops a live list, calendar and map of upcoming events onto any page — a bookstore's site, a library newsletter, a neighborhood blog. It sizes itself, follows your visitor's light/dark setting, and every event links back to FindLocal with a "Powered by FindLocal" credit.</p>
+
+    <h2 id="quickstart">Quick start</h2>
+    <p>Paste this where the calendar should appear:</p>
+    <div class="copy-wrap"><button type="button" class="copy-btn" data-copy-target="#qs">Copy</button><pre id="qs"><code>{SNIPPET}</code></pre></div>
+    <p>That's the <strong>Literary New England</strong> preset: author talks, readings, book clubs and poetry across the region's independent bookstores, libraries and literary organizations, in {regionGroupCities(REGION_GROUPS[0]!).length} metros from Stamford to Bangor.</p>
+
+    <h2 id="builder">Build your own</h2>
+    <form class="builder" data-builder>
+      <label>Scope
+        <select name="scope">
+          <optgroup label="Region groups">{REGION_GROUPS.map((g) => <option value={`region:${g.slug}`} selected={g.slug === 'new-england'}>{g.name}</option>)}</optgroup>
+          <optgroup label="Cities">{CITIES.map((c) => <option value={`city:${c.slug}`}>{c.name}, {c.state}</option>)}</optgroup>
+        </select>
+      </label>
+      <label>Category
+        <select name="cat"><option value="">All categories</option>{CATEGORIES.map((c) => <option value={c.slug} selected={c.slug === 'literary'}>{c.label}</option>)}</select>
+      </label>
+      <label>Dates
+        <select name="when"><option value="">Everything upcoming</option><option value="week">Next 7 days</option><option value="weekend">This weekend</option><option value="today">Today</option></select>
+      </label>
+      <label>Initial view
+        <select name="view"><option value="">List</option><option value="calendar">Calendar</option><option value="map">Map</option></select>
+      </label>
+      <label>Theme
+        <select name="theme"><option value="">Auto</option><option value="light">Light</option><option value="dark">Dark</option></select>
+      </label>
+      <label>Max events
+        <input type="number" name="limit" min="1" max={EMBED_MAX_LIMIT} placeholder={String(EMBED_DEFAULT_LIMIT)} />
+      </label>
+      <label>Partner id <span class="faint">(optional)</span>
+        <input type="text" name="partner" maxlength="40" placeholder="my-bookshop" />
+      </label>
+    </form>
+    <div class="copy-wrap"><button type="button" class="copy-btn" data-copy-target="#snippet">Copy</button><pre id="snippet"><code data-snippet>{SNIPPET}</code></pre></div>
+
+    <h3 id="preview">Live preview</h3>
+    <div class="preview" data-preview></div>
+
+    <h2 id="attributes">Attributes</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Attribute</th><th>Values</th><th>Notes</th></tr></thead>
+        <tbody>{attrs.map(([a, v, n]) => <tr><td><code>{a}</code></td><td>{v}</td><td>{n}</td></tr>)}</tbody>
+      </table>
+    </div>
+
+    <h2 id="regions">Region groups</h2>
+    <p>A region group bundles several metro partitions into one widget. The API and MCP tools are per-city; widgets are the one place a multi-metro area is a single thing.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Slug</th><th>Name</th><th>Metros</th></tr></thead>
+        <tbody>{REGION_GROUPS.map((g) => <tr><td><code>{g.slug}</code></td><td>{g.name}</td><td>{regionGroupCities(g).map((c) => c.name).join(', ')}</td></tr>)}</tbody>
+      </table>
+    </div>
+    <p>Want another group (Bay Area, Texas Triangle, the Carolinas)? <a href="mailto:findlocalinternal@gmail.com">Ask</a> — it's a one-line change on our side.</p>
+
+    <h2 id="how">How it works</h2>
+    <ul>
+      <li><code>widget.js</code> (about 2 KB, no dependencies) inserts an <code>&lt;iframe&gt;</code> pointing at <code>https://findlocal.community/embed/events?…</code> right after the script tag, so styles never leak in either direction.</li>
+      <li>The frame reports its height with <code>postMessage</code> (<code>{'{ type: "findlocal:resize", height }'}</code>); the loader only trusts messages from its own frame and origin. Several widgets on one page work independently.</li>
+      <li>The embed page is server-rendered from the same database as the site and cached for 10 minutes at the edge. Listings update as venues are re-scraped, typically daily.</li>
+      <li>Links open in a new tab and carry <code>utm_source=widget</code>, <code>utm_medium=embed</code>, <code>utm_campaign=&lt;scope&gt;</code> and, if you set <code>data-partner</code>, <code>utm_content=&lt;partner&gt;</code>. Because links open from inside the frame, the referrer FindLocal sees is its own domain — the UTM parameters are how we tell partners apart.</li>
+      <li>No cookies, no tracking scripts, no visitor data leaves the page. The frame requests <code>geolocation 'none'</code>.</li>
+      <li>Content Security Policy: the embed pages send <code>frame-ancestors *</code>; nothing else on findlocal.community is framable.</li>
+    </ul>
+
+    <h2 id="terms">Terms</h2>
+    <ul>
+      <li>Free for any site. Keep the "Powered by FindLocal" credit visible and don't obscure it.</li>
+      <li>Event details come from venue calendars and ticketing pages — always confirm with the venue. See the <a href="/terms">terms of service</a>.</li>
+      <li>If your widget will see serious traffic, or you'd like a custom preset, a co-branded header or events limited to your own venue, email <a href="mailto:findlocalinternal@gmail.com">findlocalinternal@gmail.com</a>.</li>
+    </ul>
+    <p>Background: <a href="/blog/findlocal-widgets-and-sharing-data">Put live local events on your site</a> on the blog.</p>
+  </div>
+</Layout>
+
+<script>
+  import { wireCopyButtons } from '../../lib/copy.js';
+  import { buildEmbedSrc, type EmbedAttrs } from '../../lib/embed.js';
+  wireCopyButtons();
+
+  const form = document.querySelector<HTMLFormElement>('[data-builder]');
+  const snippetEl = document.querySelector<HTMLElement>('[data-snippet]');
+  const preview = document.querySelector<HTMLElement>('[data-preview]');
+  const origin = location.origin;
+  let iframe: HTMLIFrameElement | null = null;
+
+  function readAttrs(): EmbedAttrs {
+    const fd = new FormData(form!);
+    const scope = String(fd.get('scope') ?? '');
+    const a: EmbedAttrs = {};
+    if (scope.startsWith('region:')) a.region = scope.slice(7);
+    else if (scope.startsWith('city:')) a.city = scope.slice(5);
+    for (const k of ['cat', 'when', 'view', 'theme', 'limit', 'partner'] as const) {
+      const v = String(fd.get(k) ?? '').trim();
+      if (v) a[k] = v;
+    }
+    // Collapse to the preset when it matches exactly.
+    if (a.region === 'new-england' && a.cat === 'literary') { delete a.region; delete a.cat; a.widget = 'literary-new-england'; }
+    return a;
+  }
+
+  function snippet(a: EmbedAttrs): string {
+    const order: (keyof EmbedAttrs)[] = ['widget', 'region', 'city', 'cat', 'when', 'view', 'theme', 'limit', 'partner'];
+    const parts = order.filter((k) => a[k]).map((k) => ` data-${k}="${String(a[k]).replace(/"/g, '&quot;')}"`).join('');
+    return `<script src="https://findlocal.community/widget.js"${parts}><\/script>`;
+  }
+
+  function render() {
+    if (!form || !snippetEl || !preview) return;
+    const a = readAttrs();
+    snippetEl.textContent = snippet(a);
+    const src = buildEmbedSrc(origin, a);
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.title = 'FindLocal events widget preview';
+      iframe.setAttribute('scrolling', 'no');
+      iframe.style.cssText = 'width:100%;border:0;display:block;min-height:320px;height:320px;';
+      preview.replaceChildren(iframe);
+    }
+    if (iframe.src !== src) iframe.src = src;
+  }
+  window.addEventListener('message', (ev) => {
+    if (!iframe || ev.source !== iframe.contentWindow || ev.origin !== origin) return;
+    const d = ev.data;
+    if (d && d.type === 'findlocal:resize' && typeof d.height === 'number') iframe.style.height = `${Math.max(120, Math.ceil(d.height))}px`;
+  });
+  form?.addEventListener('input', render);
+  form?.addEventListener('change', render);
+  render();
+</script>
+
+<style>
+  .builder { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.7rem 1rem; margin: 0.8rem 0 1rem; padding: 1rem; border: 1px solid rgb(var(--border)); border-radius: var(--radius); background: rgb(var(--surface)); }
+  .builder label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; font-weight: 600; color: rgb(var(--text-2)); }
+  .builder select, .builder input { padding: 0.45rem 0.6rem; border: 1px solid rgb(var(--border-2)); border-radius: var(--radius-sm); background: rgb(var(--bg)); color: rgb(var(--text)); font-weight: 500; }
+  .preview { border: 1px dashed rgb(var(--border-2)); border-radius: var(--radius); padding: 0.5rem; background: rgb(var(--bg-2)); margin: 0.5rem 0 1rem; }
+</style>

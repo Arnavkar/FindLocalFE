@@ -4,7 +4,7 @@ import { SITE, canonicalUrl, type City, type EventRow, type VenueRow } from '@fi
 
 const SITE_NAME = 'Find Local';
 const SITE_DESCRIPTION =
-  'Discover the best local events near you. Browse concerts, comedy shows, live music, theater, and cultural experiences across 31 US cities. Free and paid events updated daily.';
+  'Discover the best local events near you. Browse concerts, comedy shows, live music, theater, and cultural experiences across 47 US cities. Free and paid events updated daily.';
 
 /** UTC offset ('-04:00') for noon on `ymd` in `tz`, so Event.startDate is honest per city. */
 export function utcOffset(ymd: string, tz: string): string {

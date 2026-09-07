@@ -8,7 +8,7 @@ If you've ever searched "things to do tonight" and gotten the same arena tour an
 
 ## Straight from the source
 
-Find Local works differently: we go to the venues themselves. Our pipeline reads the calendars of thousands of local venues — music halls, comedy clubs, theaters, bars, community spaces — across 31 US cities, and turns them into one structured, searchable feed that updates daily.
+Find Local works differently: we go to the venues themselves. Our pipeline reads the calendars of thousands of local venues — music halls, comedy clubs, theaters, bars, community spaces — across 47 US cities, and turns them into one structured, searchable feed that updates daily.
 
 That means the listings include the shows that only ever existed as a line on a venue's own website. No account required, no markup, no "fees revealed at checkout" — tickets link straight to the venue or its own ticketing page.
 

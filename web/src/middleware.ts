@@ -70,6 +70,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // no _headers file can do this because it doesn't apply to SSR responses.
   if (url.pathname.startsWith('/api/')) response.headers.set('X-Robots-Tag', 'noindex');
   if (url.pathname === '/saved') response.headers.set('X-Robots-Tag', 'noindex');
+  // Embeddable widgets: framable from any origin (the only routes that are), never indexed.
+  if (url.pathname.startsWith('/embed/')) {
+    response.headers.set('X-Robots-Tag', 'noindex');
+    response.headers.set('Content-Security-Policy', 'frame-ancestors *');
+    response.headers.delete('X-Frame-Options');
+  }
 
   if (cacheable && keyReq && response.ok) {
     const stored = new Response(response.clone().body, response);

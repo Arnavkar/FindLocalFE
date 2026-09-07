@@ -2,6 +2,8 @@
 // Island: city <select> + "Use my location". The ONLY code that ever writes the
 // fl_city cookie (server pages just read it). Nearest-city math is inlined from
 // the city list rendered into data-cities so the island imports nothing.
+// The native <select> is stretched invisibly over the whole pill so a click
+// anywhere on it (icon, name, chevron, padding) opens the dropdown.
 import { CITIES, type City } from '@findlocal/shared';
 import Icon from './Icon.astro';
 interface Props {
@@ -13,13 +15,16 @@ const cities = CITIES.map((c) => ({ slug: c.slug, name: c.name, lat: c.lat, lng:
 <div class="city-picker" data-cities={JSON.stringify(cities)}>
   <label class="visually-hidden" for="city-select">City</label>
   <div class="select-wrap">
-    <Icon name="location" size={16} />
+    <span class="face" aria-hidden="true">
+      <Icon name="location" size={16} />
+      <span class="name" data-city-label>{current?.name ?? 'Choose a city'}</span>
+      <Icon name="chevron-down" size={16} />
+    </span>
     <select id="city-select" data-city-select aria-label="Choose a city">
       {CITIES.map((c) => (
         <option value={c.slug} selected={c.slug === current?.slug}>{c.name}</option>
       ))}
     </select>
-    <Icon name="chevron-down" size={16} />
   </div>
   <button type="button" class="locate" data-locate title="Use my location" aria-label="Use my location">
     <Icon name="my-location" size={16} />
@@ -33,6 +38,8 @@ const cities = CITIES.map((c) => ({ slug: c.slug, name: c.name, lat: c.lat, lng:
   function go(slug: string) {
     const city = cities.find((c) => c.slug === slug);
     if (!city) return;
+    const label = root?.querySelector<HTMLElement>('[data-city-label]');
+    if (label) label.textContent = city.name;
     document.cookie = `fl_city=${encodeURIComponent(city.name)}; Path=/; Max-Age=31536000; SameSite=Lax`;
     location.assign(`/city/${city.slug}`);
   }
@@ -73,8 +80,14 @@ const cities = CITIES.map((c) => ({ slug: c.slug, name: c.name, lat: c.lat, lng:
 
 <style>
   .city-picker { display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
-  .select-wrap { display: inline-flex; align-items: center; gap: 0.25rem; border: 1px solid rgb(var(--border)); border-radius: 999px; padding: 0.3rem 0.6rem 0.3rem 0.7rem; background: rgb(var(--surface-accent)); color: rgb(var(--teal)); max-width: 190px; }
-  select { appearance: none; -webkit-appearance: none; border: 0; background: transparent; font-weight: 700; font-size: 0.9rem; color: rgb(var(--text)); padding: 0; min-width: 0; max-width: 130px; text-overflow: ellipsis; cursor: pointer; }
+  .select-wrap { position: relative; display: inline-flex; align-items: center; border: 1px solid rgb(var(--border)); border-radius: 999px; background: rgb(var(--surface-accent)); color: rgb(var(--teal)); max-width: 190px; cursor: pointer; }
+  .select-wrap:hover { border-color: rgb(var(--teal)); }
+  .select-wrap:focus-within { outline: 2px solid rgb(var(--teal)); outline-offset: 2px; }
+  .face { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.6rem 0.3rem 0.7rem; min-width: 0; pointer-events: none; }
+  .face .name { font-weight: 700; font-size: 0.9rem; color: rgb(var(--text)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+  .face svg { flex-shrink: 0; }
+  /* The real control: invisible, covering the whole pill, so clicks anywhere open it. */
+  select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; margin: 0; padding: 0; border: 0; cursor: pointer; appearance: none; -webkit-appearance: none; font-size: 16px; }
   .locate { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgb(var(--border)); background: transparent; color: rgb(var(--teal)); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
   .locate:hover { background: rgb(var(--teal) / 0.08); }
   .locate:disabled { opacity: 0.5; }

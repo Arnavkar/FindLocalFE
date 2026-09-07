@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CITIES, canonicalQuery, canonicalUrl, categoryBySlug, cityBySlug, citySlug, dateRangeFor,
   filtersToQuery, formatEventDate, formatTime, getCity, GONE_PATHS, isGonePath, isUuid, nearestCity,
-  parseFilters, redirectTargetFor, slugForToken, slugsForTokens, timeOfDayBucket, todayIn, addDays,
+  parseFilters, redirectTargetFor, REGION_GROUPS, regionGroupBySlug, regionGroupCities, regionGroupCityNames, slugForToken, slugsForTokens, timeOfDayBucket, todayIn, addDays,
 } from '../src/index.js';
 
 const NY = getCity('New York')!;
@@ -11,8 +11,8 @@ const LA = cityBySlug('los-angeles')!;
 const NOW = new Date('2026-09-05T03:00:00Z');
 
 describe('cities', () => {
-  it('loads 31 metros and looks up case-insensitively', () => {
-    expect(CITIES.length).toBe(31);
+  it('loads 47 metros and looks up case-insensitively', () => {
+    expect(CITIES.length).toBe(47);
     expect(getCity('new york')?.slug).toBe('new-york');
     expect(getCity('nope')).toBeUndefined();
     expect(cityBySlug('st-louis')?.name).toBe('St. Louis');
@@ -25,6 +25,27 @@ describe('cities', () => {
   it('nearestCity by haversine', () => {
     expect(nearestCity(42.36, -71.06).name).toBe('Boston');
     expect(nearestCity(34.0, -118.2).name).toBe('Los Angeles');
+  });
+});
+
+describe('region groups', () => {
+  it('every slug in every group resolves to a city, with no duplicates', () => {
+    for (const g of REGION_GROUPS) {
+      expect(new Set(g.cities).size).toBe(g.cities.length);
+      for (const slug of g.cities) expect(cityBySlug(slug), `${g.slug}: ${slug}`).toBeDefined();
+      expect(regionGroupCities(g).length).toBe(g.cities.length);
+    }
+  });
+  it('new-england has the 18 partitions and resolves names for the query layer', () => {
+    const ne = regionGroupBySlug('New-England')!;
+    expect(ne.cities.length).toBe(18);
+    expect(ne.tz).toBe('America/New_York');
+    const names = regionGroupCityNames(ne);
+    expect(names).toContain('Boston');
+    expect(names).toContain('Portland ME');
+    expect(names).not.toContain('Portland');
+    expect(regionGroupBySlug('nope')).toBeUndefined();
+    expect(regionGroupBySlug(null)).toBeUndefined();
   });
 });
 

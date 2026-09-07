@@ -30,7 +30,7 @@ Big shows are easy to find precisely because someone paid to put them in front o
 
 ## The five-minute version
 
-1. Open [your city's feed](/city/boston) (we cover 31 US cities — [Boston](/city/boston), [New York](/city/new-york), [Chicago](/city/chicago), [LA](/city/los-angeles), and more).
+1. Open [your city's feed](/city/boston) (we cover 47 US cities — [Boston](/city/boston), [New York](/city/new-york), [Chicago](/city/chicago), [LA](/city/los-angeles), and more).
 2. Filter to the weekend, evening, and — if money's tight — free events.
 3. Save two or three candidates. Having a backup kills the "eh, never mind" instinct.
 4. Go. The venue would love to see you.

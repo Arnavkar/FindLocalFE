@@ -1,8 +1,10 @@
 ---
 title: How to Connect FindLocal to Claude, Cursor, and Other AI Assistants (MCP)
-description: Add the FindLocal MCP server to Claude.ai, Claude Code, Cursor, or any MCP client and ask plain-English questions about live local events in 31 US cities. Setup steps, the account key, and every tool explained.
+description: Add the FindLocal MCP server to Claude.ai, Claude Code, Cursor, or any MCP client and ask plain-English questions about live local events in 47 US cities. Setup steps, the account key, and every tool explained.
 date: 2026-09-04
 ---
+
+> **Reference:** the up-to-date endpoint, parameter and field tables now live at [/developers/mcp](/developers/mcp). This post is the walkthrough.
 
 Find Local runs a remote [MCP](https://modelcontextprotocol.io) server. MCP (Model Context Protocol) is the open standard AI assistants use to call outside tools, so once it's connected you can ask Claude or Cursor things like "what's free in Brooklyn this weekend?" or "any jazz near Cambridge tonight?" and it will answer from the same curated venue calendars the website uses, with links back to each event.
 
@@ -90,7 +92,7 @@ These are the tools the server exposes. Your assistant picks the right one autom
 | `get_events_at_venue` | Upcoming events at one venue. | `venue_id`, `limit` (≤100, default 20) |
 | `get_usage` | This account's calls used and remaining this month. Not metered. | none |
 
-Categories are `music`, `comedy`, `theater`, `dance`, `art`, `food_drink`, `family`, `market`, `workshop`, `fitness`, `nightlife`, `community`, `festival`, and `parks`. Cities can be given by name ("New York") or slug ("new-york"); the full list of 31 metros is in [llms.txt](/llms.txt).
+Categories are `music`, `comedy`, `theater`, `dance`, `art`, `food_drink`, `family`, `market`, `workshop`, `fitness`, `nightlife`, `community`, `festival`, `parks`, `literary`, and `literary`. Cities can be given by name ("New York") or slug ("new-york"); the full list of 47 metros is in [llms.txt](/llms.txt).
 
 An event in a tool result looks like:
 
@@ -120,7 +122,7 @@ Fields that are empty for an event are simply omitted. `date` is the venue's loc
 ## Good to know
 
 - **Freshness.** Venue calendars are re-scraped regularly, typically daily, so results reflect what venues currently list. The `when` buckets are resolved in each city's time zone.
-- **Coverage.** 31 US metros, thousands of venues, with an emphasis on the small and mid-size venues that never make it onto ticketing aggregators. A missing venue is a gap in our crawl, not a sign the event doesn't exist — tell us at findlocalinternal@gmail.com.
+- **Coverage.** 47 US metros, thousands of venues, with an emphasis on the small and mid-size venues that never make it onto ticketing aggregators. A missing venue is a gap in our crawl, not a sign the event doesn't exist — tell us at findlocalinternal@gmail.com.
 - **Privacy.** The server only ever reads event and venue data. It stores the account key you authorize with and a per-month call counter, nothing about your conversations.
 - **Rate limits.** Quotas are monthly per account key. If `demo-free` is exhausted when you try it, that's other people trying it too — request your own key.
 

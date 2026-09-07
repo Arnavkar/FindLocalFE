@@ -1,8 +1,8 @@
 import { env } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
-  categoryCounts, countUpcomingEvents, getCity, getEvent, getEventsByIds, getVenue, listRegions,
-  listSeriesDates, listSitemapEvents, listSitemapVenues, listUpcomingEvents, listUpcomingEventsForVenue,
+  categoryCounts, countUpcomingEvents, countUpcomingEventsForCities, getCity, getEvent, getEventsByIds, getVenue, listRegions,
+  listSeriesDates, listSitemapEvents, listSitemapVenues, listUpcomingEvents, listUpcomingEventsForCities, listUpcomingEventsForVenue,
   listVenues, parseFilters, searchVenuesByName, type EventFilters,
 } from '../src/index.js';
 import { D, EVENTS, eid, seed, TODAY, V } from './seed.js';
@@ -225,6 +225,54 @@ describe('aggregates', () => {
     expect(evs[0]).toEqual({ id: expect.any(String), updated_at: expect.any(String) });
     const vs = await listSitemapVenues(db);
     expect(vs.map((v) => v.id)).not.toContain(V.closed);
-    expect(vs.length).toBe(4);
+    expect(vs.length).toBe(6);
+  });
+});
+
+describe('listUpcomingEventsForCities (region groups)', () => {
+  const NE = ['Boston', 'Providence', 'Portland ME'];
+  const literaryNE = EVENTS.filter((e) => NE.includes(e.city) && e.category === 'literary' && !e.deleted && e.date >= TODAY);
+
+  it('scopes to the listed cities and category, ordered by date/time/id, no recurrence info', async () => {
+    const rows = await listUpcomingEventsForCities(db, { cities: NE, categories: ['literary'] });
+    expect(rows.length).toBe(literaryNE.length);
+    expect(titles(rows)).toContain('Poetry Reading');
+    expect(titles(rows)).toContain('Longfellow Lecture');
+    expect(titles(rows)).not.toContain('NYC Poetry Slam');
+    expect(titles(rows)).not.toContain('Cancelled Signing');
+    expect(titles(rows)).not.toContain('Athenaeum Concert');
+    for (let i = 1; i < rows.length; i++) {
+      const a = rows[i - 1]!, b = rows[i]!;
+      expect(a.event_date <= b.event_date).toBe(true);
+      if (a.event_date === b.event_date) expect((a.start_time ?? '~') <= (b.start_time ?? '~')).toBe(true);
+    }
+    for (const r of rows) {
+      expect(r.series_count).toBe(1);
+      expect(r.series_image).toBeNull();
+      expect(r.venue_name).toBeTruthy();
+    }
+  });
+  it('without categories returns every upcoming event in those cities', async () => {
+    const rows = await listUpcomingEventsForCities(db, { cities: ['Providence', 'Portland ME'], limit: 500 });
+    const expected = EVENTS.filter((e) => ['Providence', 'Portland ME'].includes(e.city) && !e.deleted && e.date >= TODAY);
+    expect(rows.length).toBe(expected.length);
+    expect(titles(rows)).toContain('Athenaeum Concert');
+  });
+  it('honours from/to and the limit clamp; empty cities short-circuits', async () => {
+    const win = await listUpcomingEventsForCities(db, { cities: NE, categories: ['literary'], from: D(2), to: D(2) });
+    expect(titles(win).sort()).toEqual(['Author Talk: Debut Novel', 'Longfellow Lecture']);
+    const one = await listUpcomingEventsForCities(db, { cities: NE, categories: ['literary'], limit: 1 });
+    expect(one.length).toBe(1);
+    expect(await listUpcomingEventsForCities(db, { cities: [], categories: ['literary'] })).toEqual([]);
+    expect(await countUpcomingEventsForCities(db, { cities: [] })).toBe(0);
+  });
+  it('count matches the list and dedupes cities', async () => {
+    const n = await countUpcomingEventsForCities(db, { cities: [...NE, 'Boston', ' Providence '], categories: ['literary'] });
+    expect(n).toBe(literaryNE.length);
+  });
+  it('stays under the D1 bind cap with many cities and categories', async () => {
+    const cities = Array.from({ length: 100 }, (_, i) => `City ${i}`).concat(NE);
+    const categories = Array.from({ length: 30 }, (_, i) => `cat${i}`).concat(['literary']);
+    await expect(listUpcomingEventsForCities(db, { cities, categories })).resolves.toBeInstanceOf(Array);
   });
 });

@@ -29,7 +29,9 @@ const { markers, center, tall = false, label = 'Map of venues' } = Astro.props;
   type Marker = { lat: number; lng: number; count: number; title: string; href: string; subtitle?: string; items?: { label: string; href: string }[] };
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
-  async function initMap(el: HTMLElement) {
+  type MapEl = HTMLElement & { _flMap?: import('leaflet').Map; _flInit?: Promise<void> };
+
+  async function initMap(el: MapEl) {
     const { default: L } = await import('leaflet');
     const markers = JSON.parse(el.dataset.markers ?? '[]') as Marker[];
     const center = JSON.parse(el.dataset.center ?? '{"lat":42.36,"lng":-71.06,"zoom":12}') as { lat: number; lng: number; zoom: number };
@@ -55,7 +57,23 @@ const { markers, center, tall = false, label = 'Map of venues' } = Astro.props;
     if (markers.length > 1 && bounds.isValid()) map.fitBounds(bounds.pad(0.15), { maxZoom: 14 });
     else if (markers.length === 1) map.setView([markers[0]!.lat, markers[0]!.lng], 15);
     else map.setView([center.lat, center.lng], center.zoom);
+    el._flMap = map;
+    document.dispatchEvent(new CustomEvent('fl:map-ready', { detail: el }));
   }
+
+  /** Init a map on demand (used when the map starts `hidden`, where the
+   * IntersectionObserver never fires), or fix its size after being unhidden. */
+  function showMap(el: MapEl) {
+    if (el._flMap) {
+      el._flMap.invalidateSize();
+      return;
+    }
+    el._flInit ??= initMap(el);
+  }
+  document.addEventListener('fl:map-show', (ev) => {
+    const el = (ev as CustomEvent<HTMLElement>).detail;
+    if (el?.classList.contains('fl-map')) showMap(el as MapEl);
+  });
 
   const maps = document.querySelectorAll<HTMLElement>('.fl-map[data-markers]');
   if (maps.length > 0) {
@@ -64,7 +82,7 @@ const { markers, center, tall = false, label = 'Map of venues' } = Astro.props;
         for (const entry of entries) {
           if (entry.isIntersecting) {
             obs.unobserve(entry.target);
-            void initMap(entry.target as HTMLElement);
+            showMap(entry.target as MapEl);
           }
         }
       },

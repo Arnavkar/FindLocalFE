@@ -22,6 +22,7 @@ const summary = filterSummary(state);
 <FilterBar state={state} />
 <p class="muted result-line" aria-live="polite">
   {state.total === 0 ? 'No events match' : `${state.total.toLocaleString('en-US')} ${state.total === 1 ? 'event' : 'events'}`}{summary ? ` · ${summary}` : ''}
+  <span class="sep" aria-hidden="true">·</span><a class="all-venues" href="/venues">All venues in {state.city.name}</a>
 </p>
 {state.view === 'map' && <EventMap events={state.events} city={state.city} />}
 {state.events.length === 0 ? (
@@ -35,4 +36,6 @@ const summary = filterSummary(state);
 
 <style>
   .result-line { margin: 0.5rem 0 0; font-size: 0.9rem; }
+  .result-line .sep { margin: 0 0.4rem; }
+  .all-venues { font-weight: 600; }
 </style>
