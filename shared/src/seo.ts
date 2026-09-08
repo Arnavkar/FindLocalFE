@@ -4,8 +4,15 @@ import { CITIES } from './cities.js';
 
 export const SITE = 'https://findlocal.community';
 
-/** Impact.com site verification meta (`<meta name="impact-site-verification" value=...>`). */
-export const IMPACT_SITE_VERIFICATION = '69cc4690-1595-47a6-9724-1c86ad3258b6';
+/**
+ * Impact.com site verification metas (`<meta name="impact-site-verification" value=...>`).
+ * The first was issued to the original account (Expo-era site); the second to the
+ * partner account created 2026-09-08. Keep both until the old account is closed.
+ */
+export const IMPACT_SITE_VERIFICATIONS = [
+  '69cc4690-1595-47a6-9724-1c86ad3258b6',
+  '5188a322-212f-4edf-89df-bcd0a578e8c5',
+];
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
