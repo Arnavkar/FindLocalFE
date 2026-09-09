@@ -25,7 +25,8 @@ const CITY_SLUGS = new Set(CITIES.map((c) => c.slug));
 /**
  * 301 target for a request pathname, or null when the path is already canonical:
  * trailing slash stripped; uppercase uuid segments lowercased; /<city-slug> ->
- * /city/<slug>; /map -> /?view=map; /filters -> /; /sitemap, /sitemaps/* -> /sitemap.xml.
+ * /city/<slug>; /map -> /?view=map; /filters -> /; /sitemap, /sitemap-blog.xml (old
+ * sitemap-index children) -> /sitemap.xml. /sitemaps/<name>.xml is a real route.
  */
 export function redirectTargetFor(pathname: string): string | null {
   let p = pathname;
@@ -38,7 +39,7 @@ export function redirectTargetFor(pathname: string): string | null {
   if (bare && CITY_SLUGS.has(bare[1] as string)) p = `/city/${bare[1]}`;
   if (p === '/map') p = '/?view=map';
   else if (p === '/filters') p = '/';
-  else if (p === '/sitemap' || p.startsWith('/sitemaps/')) p = '/sitemap.xml';
+  else if (p === '/sitemap' || p === '/sitemap-blog.xml' || p === '/sitemaps') p = '/sitemap.xml';
   return p === pathname ? null : p;
 }
 

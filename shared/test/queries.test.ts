@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
-  categoryCounts, countUpcomingEvents, countUpcomingEventsForCities, getCity, getEvent, getEventsByIds, getVenue, listRegions,
+  categoryCounts, countUpcomingEvents, countUpcomingEventsByCity, countUpcomingEventsForCities, getCity, getEvent, getEventsByIds, getVenue, listRegions,
   listSeriesDates, listSitemapEvents, listSitemapVenues, listUpcomingEvents, listUpcomingEventsForCities, listUpcomingEventsForVenue,
   listVenues, parseFilters, searchVenuesByName, type EventFilters,
 } from '../src/index.js';
@@ -218,14 +218,36 @@ describe('aggregates', () => {
     expect(aware.find((c) => c.category === 'fitness')).toBeUndefined(); // yoga is paid
     expect(aware.find((c) => c.category === 'music')).toBeDefined(); // not restricted to comedy
   });
-  it('sitemap projections', async () => {
+  it('sitemap projections: series collapsed to the first date, horizon applied, empty venues dropped', async () => {
     const evs = await listSitemapEvents(db);
-    const expected = EVENTS.filter((e) => !e.deleted && e.date >= TODAY).length;
-    expect(evs.length).toBe(expected);
-    expect(evs[0]).toEqual({ id: expect.any(String), updated_at: expect.any(String) });
+    const ids = new Set(evs.map((e) => e.id));
+    const upcoming = EVENTS.filter((e) => !e.deleted && e.date >= TODAY);
+    // one url per (venue, normalised title): the earliest date wins
+    const firstBySeries = new Map<string, Required<typeof EVENTS[number]>>();
+    for (const e of [...upcoming].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))) {
+      const k = `${e.venue}|${e.title.trim().toLowerCase()}`;
+      if (!firstBySeries.has(k)) firstBySeries.set(k, e);
+    }
+    expect(evs.length).toBe(firstBySeries.size);
+    for (const e of firstBySeries.values()) expect(ids.has(e.id), e.title).toBe(true);
+    const trivia = upcoming.filter((e) => e.title === 'Trivia Night');
+    expect(ids.has(trivia[0]!.id)).toBe(true);
+    expect(trivia.slice(1).some((e) => ids.has(e.id))).toBe(false);
+    expect(evs[0]).toEqual({ id: expect.any(String) });
+    // horizon: a 0-day window keeps only today's events
+    const todayOnly = await listSitemapEvents(db, 0);
+    expect(todayOnly.every((e) => EVENTS.find((x) => x.id === e.id)?.date === TODAY)).toBe(true);
+    expect(todayOnly.length).toBeGreaterThan(0);
+
     const vs = await listSitemapVenues(db);
-    expect(vs.map((v) => v.id)).not.toContain(V.closed);
-    expect(vs.length).toBe(6);
+    const vids = vs.map((v) => v.id);
+    expect(vids).not.toContain(V.closed);
+    for (const id of vids) expect(upcoming.some((e) => e.venue === id), id).toBe(true);
+    expect(vs[0]).toEqual({ id: expect.any(String) });
+
+    const byCity = await countUpcomingEventsByCity(db);
+    expect(byCity.get('Boston')).toBe(upcomingBoston.length);
+    expect(byCity.get('Nowhere')).toBeUndefined();
   });
 });
 

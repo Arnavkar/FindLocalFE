@@ -28,15 +28,15 @@ const mapHref = `${listHref}${listHref.includes('?') ? '&' : '?'}view=map`;
       <button type="submit" class="visually-hidden">Search</button>
     </form>
     <div class="view-toggle" role="group" aria-label="View">
-      <a class="chip" href={listHref} aria-current={state.view === 'list' ? 'true' : undefined}><Icon name="list" size={16} /> List</a>
-      <a class="chip" href={mapHref} aria-current={state.view === 'map' ? 'true' : undefined}><Icon name="map" size={16} /> Map</a>
+      <a rel="nofollow" class="chip" href={listHref} aria-current={state.view === 'list' ? 'true' : undefined}><Icon name="list" size={16} /> List</a>
+      <a rel="nofollow" class="chip" href={mapHref} aria-current={state.view === 'map' ? 'true' : undefined}><Icon name="map" size={16} /> Map</a>
     </div>
   </div>
 
   {anyFilter && (
     <p class="row mobile-summary">
       <span class="muted">{summary}</span>
-      <a class="chip clear" href={clearHref}><Icon name="close" size={14} /> Clear</a>
+      <a rel="nofollow" class="chip clear" href={clearHref}><Icon name="close" size={14} /> Clear</a>
     </p>
   )}
 
@@ -44,7 +44,7 @@ const mapHref = `${listHref}${listHref.includes('?') ? '&' : '?'}view=map`;
     <span class="label">When</span>
     <div class="chips">
       {WHEN_CHIPS.map((w) => (
-        <a class="chip" href={chipHref(state, { when: w.value === 'anytime' ? undefined : w.value })} aria-current={state.when === w.value ? 'true' : undefined}>{w.label}</a>
+        <a rel="nofollow" class="chip" href={chipHref(state, { when: w.value === 'anytime' ? undefined : w.value })} aria-current={state.when === w.value ? 'true' : undefined}>{w.label}</a>
       ))}
       <form class="date" method="get" action={state.basePath}>
         {[...hidden.entries()].filter(([k]) => k !== 'when' && k !== 'page').map(([k, v]) => <input type="hidden" name={k} value={v} />)}
@@ -61,7 +61,7 @@ const mapHref = `${listHref}${listHref.includes('?') ? '&' : '?'}view=map`;
       <span class="label">Category</span>
       <div class="chips">
         {state.categoryOptions.map((c) => (
-          <a class="chip" href={chipHref(state, { categories: toggled(f.categories, c.slug) })} aria-current={c.active ? 'true' : undefined}>
+          <a rel="nofollow" class="chip" href={chipHref(state, { categories: toggled(f.categories, c.slug) })} aria-current={c.active ? 'true' : undefined}>
             {c.label} <span class="count">{c.count}</span>
           </a>
         ))}
@@ -72,13 +72,13 @@ const mapHref = `${listHref}${listHref.includes('?') ? '&' : '?'}view=map`;
   <div class="row">
     <span class="label">Price</span>
     <div class="chips">
-      <a class="chip" href={chipHref(state, { free: !f.free, paid: f.paid })} aria-current={f.free ? 'true' : undefined}>Free</a>
-      <a class="chip" href={chipHref(state, { paid: !f.paid, free: f.free })} aria-current={f.paid ? 'true' : undefined}>Ticketed</a>
+      <a rel="nofollow" class="chip" href={chipHref(state, { free: !f.free, paid: f.paid })} aria-current={f.free ? 'true' : undefined}>Free</a>
+      <a rel="nofollow" class="chip" href={chipHref(state, { paid: !f.paid, free: f.free })} aria-current={f.paid ? 'true' : undefined}>Ticketed</a>
     </div>
     <span class="label">Time</span>
     <div class="chips">
       {TOD_CHIPS.map((t) => (
-        <a class="chip" href={chipHref(state, { timeOfDay: toggled(f.timeOfDay, t.value) })} aria-current={f.timeOfDay?.includes(t.value) ? 'true' : undefined}>{t.label}</a>
+        <a rel="nofollow" class="chip" href={chipHref(state, { timeOfDay: toggled(f.timeOfDay, t.value) })} aria-current={f.timeOfDay?.includes(t.value) ? 'true' : undefined}>{t.label}</a>
       ))}
     </div>
   </div>
@@ -88,7 +88,7 @@ const mapHref = `${listHref}${listHref.includes('?') ? '&' : '?'}view=map`;
       <span class="label">Area</span>
       <div class="chips">
         {state.regions.slice(0, 14).map((r) => (
-          <a class="chip" href={chipHref(state, { region: f.region === r.region ? undefined : r.region })} aria-current={f.region === r.region ? 'true' : undefined}>
+          <a rel="nofollow" class="chip" href={chipHref(state, { region: f.region === r.region ? undefined : r.region })} aria-current={f.region === r.region ? 'true' : undefined}>
             {r.region} <span class="count">{r.count}</span>
           </a>
         ))}
@@ -98,7 +98,7 @@ const mapHref = `${listHref}${listHref.includes('?') ? '&' : '?'}view=map`;
 
   {anyFilter && (
     <div class="row">
-      <a class="chip clear" href={clearHref}><Icon name="close" size={14} /> Clear filters</a>
+      <a rel="nofollow" class="chip clear" href={clearHref}><Icon name="close" size={14} /> Clear filters</a>
     </div>
   )}
 </section>

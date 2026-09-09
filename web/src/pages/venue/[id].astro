@@ -1,5 +1,7 @@
 ---
 // /venue/<uuid>: Place JSON-LD + upcoming list; unknown or inactive -> 404.
+// A venue with no upcoming events, no description and no address is noindex
+// (it reads as a soft 404); the sitemap only lists venues with upcoming events.
 import Layout from '../../layouts/Layout.astro';
 import BackLink from '../../components/BackLink.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
@@ -23,6 +25,7 @@ const metaDescription = venue
 const crumbs = venue
   ? [{ name: 'Home', path: '/' }, ...(city ? [{ name: `Events in ${city.name}`, path: `/city/${city.slug}` }] : []), { name: 'Venues', path: '/venues' }, { name: venue.name, path: `/venue/${venue.id}` }]
   : [];
+const empty = !!venue && events.length === 0 && !description && !venue.address;
 const mapsHref = venue?.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venue.name}, ${venue.address}`)}` : null;
 ---
 {!venue || venue.is_active !== 1 ? (
@@ -35,6 +38,7 @@ const mapsHref = venue?.address ? `https://www.google.com/maps/search/?api=1&que
     title={`${venue.name} in ${venue.city}`}
     description={metaDescription}
     canonicalPath={`/venue/${venue.id}`}
+    noindex={empty}
     ogImage={venue.image}
     ogType="place"
     jsonAlternate={`${SITE}/api/events?venue=${venue.id}`}

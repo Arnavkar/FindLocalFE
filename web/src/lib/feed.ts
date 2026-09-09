@@ -46,8 +46,18 @@ export interface FeedState {
   categoryOptions: { slug: string; label: string; count: number; active: boolean }[];
   regions: { region: string; count: number }[];
   view: 'list' | 'map';
-  /** canonicalQuery of the request ('' = unfiltered). */
+  /** canonicalQuery of the request ('' = unfiltered, unpaged). */
   canonical: string;
+  /** `canonical` minus `page`: '' means the view is only paginated, never filtered. */
+  filterCanonical: string;
+}
+
+/** canonicalQuery with the page key removed (pagination is indexable, filters are not). */
+export function withoutPage(canonical: string): string {
+  const p = new URLSearchParams(canonical);
+  p.delete('page');
+  p.sort();
+  return p.toString();
 }
 
 export async function loadFeed(db: D1Database, city: City, url: URL, now: Date = new Date()): Promise<FeedState> {
@@ -85,6 +95,7 @@ export async function loadFeed(db: D1Database, city: City, url: URL, now: Date =
     regions,
     view: params.get('view') === 'map' ? 'map' : 'list',
     canonical,
+    filterCanonical: withoutPage(canonical),
   };
 }
 

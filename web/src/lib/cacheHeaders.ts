@@ -4,7 +4,7 @@
 //
 //   feed / city pages   600 s edge, SWR 1 day   (listings change with each scrape)
 //   event / venue       3600 s edge
-//   sitemap             86400 s edge
+//   sitemap(s)          86400 s edge
 //   /api/*              300 s edge
 //   /embed/*            600 s edge (widgets; keyed on the full query)
 //   /saved, non-GET, non-2xx: never cached
@@ -25,7 +25,7 @@ export function cachePolicyFor(pathname: string): CachePolicy {
   if (pathname === '/' || pathname === '/venues') return { edge: 600, browser: 0, perCity: true };
   if (pathname.startsWith('/city/')) return { edge: 600, browser: 300, perCity: false };
   if (pathname.startsWith('/event/') || pathname.startsWith('/venue/')) return { edge: 3600, browser: 300, perCity: false };
-  if (pathname === '/sitemap.xml') return { edge: 86400, browser: 3600, perCity: false };
+  if (pathname === '/sitemap.xml' || pathname.startsWith('/sitemaps/')) return { edge: 86400, browser: 3600, perCity: false };
   if (pathname.startsWith('/api/')) return { edge: 300, browser: 60, perCity: false };
   if (pathname.startsWith('/embed/')) return { edge: 600, browser: 60, perCity: false };
   // Static-ish SSR pages (404, blog fallbacks): short edge TTL.
