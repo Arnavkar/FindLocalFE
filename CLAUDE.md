@@ -117,8 +117,8 @@ npm run deploy:web               # astro build + wrangler deploy (needs a real S
 - **Sitemap**: `/sitemap.xml` is a sitemap index → `/sitemaps/static.xml` (static,
   blog, cities with ≥3 events), `/sitemaps/venues.xml` (active venues with ≥1 upcoming
   event), `/sitemaps/events-N.xml` (10k per chunk; upcoming, non-deleted, ≤180 days out,
-  one URL per recurring series = its next date). No `<lastmod>` on events/venues: the
-  pipeline bumps `updated_at` on every upsert. Google's cap is 50k URLs per file.
+  one URL per recurring series = its next date). `<lastmod>` = `updated_at`, which the
+  pipeline bumps only on a visible change (FindLocalData PR #28). Google's cap is 50k URLs per file.
 - **robots.txt**: allow all crawlers **including AI/answer engines** (GPTBot,
   ClaudeBot, PerplexityBot …) — blocking them killed GEO visibility; disallow
   only `/api/`, `/embed/`, `/saved`, `/filters` and the filter query keys (`/*?when=` …); `Sitemap: https://findlocal.community/sitemap.xml`.

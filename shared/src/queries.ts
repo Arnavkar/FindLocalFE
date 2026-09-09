@@ -411,34 +411,34 @@ export const SITEMAP_HORIZON_DAYS = 180;
  * only the FIRST upcoming occurrence of each series (same lower(trim(title)) at
  * the same venue) so Google sees one page per recurring event instead of N
  * near-duplicates. Later dates stay crawlable from the event and venue pages.
- * No `updated_at`: the pipeline bumps it on every no-op upsert, so it would be
- * a false <lastmod>.
+ * `updated_at` feeds <lastmod>; since FindLocalData PR #28 the pipeline only
+ * bumps it when a visible column changes.
  */
-export async function listSitemapEvents(db: D1Database, horizonDays = SITEMAP_HORIZON_DAYS): Promise<{ id: string }[]> {
+export async function listSitemapEvents(db: D1Database, horizonDays = SITEMAP_HORIZON_DAYS): Promise<{ id: string; updated_at: string }[]> {
   const today = todayDefault();
   const { results } = await db
     .prepare(
-      `SELECT id FROM (
-         SELECT id, event_date,
+      `SELECT id, updated_at FROM (
+         SELECT id, event_date, updated_at,
                 ROW_NUMBER() OVER (PARTITION BY venue_id, lower(trim(title)) ORDER BY event_date, id) AS rn
          FROM events WHERE is_deleted = 0 AND event_date >= ?
        ) WHERE rn = 1 AND event_date <= ? ORDER BY event_date, id`,
     )
     .bind(today, addDays(today, horizonDays))
-    .all<{ id: string }>();
+    .all<{ id: string; updated_at: string }>();
   return results;
 }
 
 /** Active venues that currently have at least one upcoming event (an empty venue page reads as a soft 404). */
-export async function listSitemapVenues(db: D1Database): Promise<{ id: string }[]> {
+export async function listSitemapVenues(db: D1Database): Promise<{ id: string; updated_at: string }[]> {
   const { results } = await db
     .prepare(
-      `SELECT v.id FROM venues v WHERE v.is_active = 1
+      `SELECT v.id, v.updated_at FROM venues v WHERE v.is_active = 1
          AND EXISTS (SELECT 1 FROM events e WHERE e.venue_id = v.id AND e.is_deleted = 0 AND e.event_date >= ?)
        ORDER BY v.name, v.id`,
     )
     .bind(todayDefault())
-    .all<{ id: string }>();
+    .all<{ id: string; updated_at: string }>();
   return results;
 }
 

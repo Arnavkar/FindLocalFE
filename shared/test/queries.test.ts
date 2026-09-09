@@ -233,7 +233,7 @@ describe('aggregates', () => {
     const trivia = upcoming.filter((e) => e.title === 'Trivia Night');
     expect(ids.has(trivia[0]!.id)).toBe(true);
     expect(trivia.slice(1).some((e) => ids.has(e.id))).toBe(false);
-    expect(evs[0]).toEqual({ id: expect.any(String) });
+    expect(evs[0]).toEqual({ id: expect.any(String), updated_at: expect.any(String) });
     // horizon: a 0-day window keeps only today's events
     const todayOnly = await listSitemapEvents(db, 0);
     expect(todayOnly.every((e) => EVENTS.find((x) => x.id === e.id)?.date === TODAY)).toBe(true);
@@ -243,7 +243,7 @@ describe('aggregates', () => {
     const vids = vs.map((v) => v.id);
     expect(vids).not.toContain(V.closed);
     for (const id of vids) expect(upcoming.some((e) => e.venue === id), id).toBe(true);
-    expect(vs[0]).toEqual({ id: expect.any(String) });
+    expect(vs[0]).toEqual({ id: expect.any(String), updated_at: expect.any(String) });
 
     const byCity = await countUpcomingEventsByCity(db);
     expect(byCity.get('Boston')).toBe(upcomingBoston.length);
