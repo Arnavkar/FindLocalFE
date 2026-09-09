@@ -98,19 +98,30 @@ npm run deploy:web               # astro build + wrangler deploy (needs a real S
   Uuids are lowercase; case variants **301** to lowercase (`redirectTargetFor`).
 - **301 table** (`redirectTargetFor`): trailing slash → none; uppercase uuid →
   lowercase; `/<city-slug>` → `/city/<slug>`; `/map` → `/?view=map`;
-  `/filters` → `/`; `/sitemap`, `/sitemaps/*` → `/sitemap.xml`.
+  `/filters` → `/`; `/sitemap`, `/sitemaps`, `/sitemap-blog.xml` → `/sitemap.xml`.
 - **410 table** (`GONE_PATHS`): `/friends /create /home /profile /support
   /discover-creators /followed-venues /following-activity /followers /user/*
   /auth/* /invite/*` — answer **410 + noindex**. Do NOT block them in
   robots.txt: crawlers must fetch them to drop them from the index.
 - **Event pages**: live → 200 with per-event title/description/canonical/OG +
   Event JSON-LD; past date → **410 + noindex** (still render a friendly page);
-  soft-deleted (`is_deleted=1`, `getEvent` returns it) → 200 + "no longer listed"
-  notice + noindex; unknown id → 404 + noindex. Venue pages: unknown/inactive → 404.
-  City pages with <3 events → noindex.
+  soft-deleted (`is_deleted=1`, `getEvent` returns it) → **410** + "no longer listed"
+  notice + noindex; unknown id → 404 + noindex. 404/410 on `/event/*` and `/venue/*`
+  are edge-cached like a 200. Venue pages: unknown/inactive → 404; no upcoming events
+  *and* no description/address → noindex. City pages with <3 events → noindex.
+- **Feed pagination vs filters**: `?page=N` on `/city/<slug>` is indexable with a
+  self-referencing canonical (`canonicalQuery="page=N"`); `/?page=N` canonicalises to
+  it. Any real filter (`when cat free paid max tod region q`) → noindex + canonical to
+  the bare city page, filter chips are `rel=nofollow`, and robots.txt disallows those
+  query keys. Never link filter permutations without nofollow.
+- **Sitemap**: `/sitemap.xml` is a sitemap index → `/sitemaps/static.xml` (static,
+  blog, cities with ≥3 events), `/sitemaps/venues.xml` (active venues with ≥1 upcoming
+  event), `/sitemaps/events-N.xml` (10k per chunk; upcoming, non-deleted, ≤180 days out,
+  one URL per recurring series = its next date). `<lastmod>` = `updated_at`, which the
+  pipeline bumps only on a visible change (FindLocalData PR #28). Google's cap is 50k URLs per file.
 - **robots.txt**: allow all crawlers **including AI/answer engines** (GPTBot,
   ClaudeBot, PerplexityBot …) — blocking them killed GEO visibility; disallow
-  only `/api/`, `/embed/`, `/saved`, `/filters`; `Sitemap: https://findlocal.community/sitemap.xml`.
+  only `/api/`, `/embed/`, `/saved`, `/filters` and the filter query keys (`/*?when=` …); `Sitemap: https://findlocal.community/sitemap.xml`.
   `noindex` on `/saved`, `/filters`. Keep `public/llms.txt` (site description,
   key pages, URL shapes, city list) current.
 - **Verification meta**: `<meta name="impact-site-verification" value="69cc4690-1595-47a6-9724-1c86ad3258b6">`

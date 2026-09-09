@@ -1,6 +1,8 @@
 ---
 // Canonical per-city page ("things to do in Boston"). ItemList + BreadcrumbList
-// JSON-LD; noindex when filtered or thin (<3 events).
+// JSON-LD; noindex when filtered, thin (<3 events) or past the last page.
+// Plain pagination (?page=N) is indexable with a self-referencing canonical so
+// crawlers can walk the whole list; filter chips are nofollow + robots-blocked.
 import Layout from '../../layouts/Layout.astro';
 import Feed from '../../components/Feed.astro';
 import JsonLd from '../../components/JsonLd.astro';
@@ -16,8 +18,10 @@ if (!city) return Astro.rewrite('/404');
 if (city.slug !== slug) return Astro.redirect(`/city/${city.slug}${Astro.url.search}`, 301);
 
 const state = await loadFeed(getDb(), city, Astro.url);
-const filtered = state.canonical !== '';
+const filtered = state.filterCanonical !== '';
+const paged = !filtered && state.page > 1;
 const thin = state.total < 3;
+const beyond = state.page > state.pages;
 const cityLabel = `${city.name}, ${city.state}`;
 const crumbs = [
   { name: 'Home', path: '/' },
@@ -26,10 +30,11 @@ const crumbs = [
 const jsonAlternate = `${SITE}/api/events?city=${encodeURIComponent(city.name)}${state.canonical ? `&${state.canonical}` : ''}`;
 ---
 <Layout
-  title={`Things to Do in ${city.name} — Concerts, Comedy, Theater & More`}
+  title={`Things to Do in ${city.name} — Concerts, Comedy, Theater & More${paged ? ` (Page ${state.page})` : ''}`}
   description={`Upcoming live music, comedy, theater, and community events in ${cityLabel}, pulled straight from local venue calendars and updated daily.`}
   canonicalPath={state.basePath}
-  noindex={filtered || thin}
+  canonicalQuery={paged ? `page=${state.page}` : ''}
+  noindex={filtered || thin || beyond}
   jsonAlternate={jsonAlternate}
   wide
 >

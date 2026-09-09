@@ -77,7 +77,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
     response.headers.delete('X-Frame-Options');
   }
 
-  if (cacheable && keyReq && response.ok) {
+  // Dead ids (expired/delisted events, unknown uuids) are what Googlebot retries
+  // most: keep those 404/410 pages at the edge too, so retries never reach D1.
+  const deadId = (response.status === 404 || response.status === 410) && /^\/(event|venue)\//.test(url.pathname);
+  if (cacheable && keyReq && (response.ok || deadId)) {
     const stored = new Response(response.clone().body, response);
     stored.headers.set('Cache-Control', edgeCacheControl(policy));
     stored.headers.delete('Set-Cookie');
@@ -89,7 +92,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     response.headers.set('X-Edge-Cache', 'BYPASS');
   }
   if (!response.headers.has('Cache-Control')) {
-    response.headers.set('Cache-Control', response.ok ? browserCacheControl(policy) : 'private, no-store');
+    response.headers.set('Cache-Control', response.ok || deadId ? browserCacheControl(policy) : 'private, no-store');
   }
   return response;
 });

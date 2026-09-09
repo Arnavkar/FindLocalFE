@@ -9,5 +9,25 @@ Disallow: /api/
 Disallow: /embed/
 Disallow: /saved
 Disallow: /filters
+# Filtered feed views (?when=, ?cat=, ...) are noindex and combinatorial; keep
+# crawl budget on /city/<slug>, ?page=N, /event/* and /venue/*.
+Disallow: /*?when=
+Disallow: /*&when=
+Disallow: /*?cat=
+Disallow: /*&cat=
+Disallow: /*?free=
+Disallow: /*&free=
+Disallow: /*?paid=
+Disallow: /*&paid=
+Disallow: /*?max=
+Disallow: /*&max=
+Disallow: /*?tod=
+Disallow: /*&tod=
+Disallow: /*?region=
+Disallow: /*&region=
+Disallow: /*?q=
+Disallow: /*&q=
+Disallow: /*?view=
+Disallow: /*&view=
 
 Sitemap: https://findlocal.community/sitemap.xml
