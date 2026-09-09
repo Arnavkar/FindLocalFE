@@ -162,7 +162,10 @@ describe('seo', () => {
     expect(redirectTargetFor('/map')).toBe('/?view=map');
     expect(redirectTargetFor('/filters')).toBe('/');
     expect(redirectTargetFor('/sitemap')).toBe('/sitemap.xml');
-    expect(redirectTargetFor('/sitemaps/events-1.xml')).toBe('/sitemap.xml');
+    expect(redirectTargetFor('/sitemap-blog.xml')).toBe('/sitemap.xml');
+    expect(redirectTargetFor('/sitemaps')).toBe('/sitemap.xml');
+    expect(redirectTargetFor('/sitemaps/events-1.xml')).toBeNull();
+    expect(redirectTargetFor('/sitemaps/static.xml/')).toBe('/sitemaps/static.xml');
     expect(redirectTargetFor('/sitemap.xml')).toBeNull();
   });
   it('GONE_PATHS', () => {

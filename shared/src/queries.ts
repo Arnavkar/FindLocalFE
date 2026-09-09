@@ -4,7 +4,7 @@
 // All SQL lives here; JSON columns are parsed in the mappers.
 import type { D1Database } from '@cloudflare/workers-types';
 import { getCity } from './cities.js';
-import { todayIn } from './dates.js';
+import { addDays, todayIn } from './dates.js';
 import type { EventFilters } from './filters.js';
 import type { EventRow, VenueRow } from './types.js';
 
@@ -404,17 +404,49 @@ export async function categoryCounts(
 
 // ---------------------------------------------------------------- sitemaps
 
-export async function listSitemapEvents(db: D1Database): Promise<{ id: string; updated_at: string }[]> {
+export const SITEMAP_HORIZON_DAYS = 180;
+
+/**
+ * Event URLs worth submitting: upcoming, not deleted, within `horizonDays`, and
+ * only the FIRST upcoming occurrence of each series (same lower(trim(title)) at
+ * the same venue) so Google sees one page per recurring event instead of N
+ * near-duplicates. Later dates stay crawlable from the event and venue pages.
+ * `updated_at` feeds <lastmod>; since FindLocalData PR #28 the pipeline only
+ * bumps it when a visible column changes.
+ */
+export async function listSitemapEvents(db: D1Database, horizonDays = SITEMAP_HORIZON_DAYS): Promise<{ id: string; updated_at: string }[]> {
+  const today = todayDefault();
   const { results } = await db
-    .prepare(`SELECT id, updated_at FROM events WHERE is_deleted = 0 AND event_date >= ? ORDER BY event_date, id`)
+    .prepare(
+      `SELECT id, updated_at FROM (
+         SELECT id, event_date, updated_at,
+                ROW_NUMBER() OVER (PARTITION BY venue_id, lower(trim(title)) ORDER BY event_date, id) AS rn
+         FROM events WHERE is_deleted = 0 AND event_date >= ?
+       ) WHERE rn = 1 AND event_date <= ? ORDER BY event_date, id`,
+    )
+    .bind(today, addDays(today, horizonDays))
+    .all<{ id: string; updated_at: string }>();
+  return results;
+}
+
+/** Active venues that currently have at least one upcoming event (an empty venue page reads as a soft 404). */
+export async function listSitemapVenues(db: D1Database): Promise<{ id: string; updated_at: string }[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT v.id, v.updated_at FROM venues v WHERE v.is_active = 1
+         AND EXISTS (SELECT 1 FROM events e WHERE e.venue_id = v.id AND e.is_deleted = 0 AND e.event_date >= ?)
+       ORDER BY v.name, v.id`,
+    )
     .bind(todayDefault())
     .all<{ id: string; updated_at: string }>();
   return results;
 }
 
-export async function listSitemapVenues(db: D1Database): Promise<{ id: string; updated_at: string }[]> {
+/** Upcoming (non-deleted) event count per city name, for deciding which city pages to submit. */
+export async function countUpcomingEventsByCity(db: D1Database): Promise<Map<string, number>> {
   const { results } = await db
-    .prepare(`SELECT id, updated_at FROM venues WHERE is_active = 1 ORDER BY name, id`)
-    .all<{ id: string; updated_at: string }>();
-  return results;
+    .prepare(`SELECT city, COUNT(*) AS count FROM events WHERE is_deleted = 0 AND event_date >= ? GROUP BY city`)
+    .bind(todayDefault())
+    .all<{ city: string; count: number }>();
+  return new Map(results.map((r) => [r.city, r.count]));
 }

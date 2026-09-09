@@ -61,6 +61,7 @@ describe('cache policy', () => {
     expect(cachePolicyFor('/event/x').edge).toBe(3600);
     expect(cachePolicyFor('/venue/x').edge).toBe(3600);
     expect(cachePolicyFor('/sitemap.xml').edge).toBe(86400);
+    expect(cachePolicyFor('/sitemaps/events-3.xml').edge).toBe(86400);
     expect(cachePolicyFor('/api/events').edge).toBe(300);
     expect(cachePolicyFor('/saved').edge).toBe(0);
   });

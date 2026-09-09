@@ -12,6 +12,7 @@ export function getDb(): D1Database {
 export {
   categoryCounts,
   countUpcomingEvents,
+  countUpcomingEventsByCity,
   countUpcomingEventsForCities,
   getEvent,
   getEventsByIds,

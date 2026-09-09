@@ -1,7 +1,7 @@
 ---
 // Home: the feed for the fl_city cookie city (default Boston). Same body as
-// the city page; Organization + WebSite JSON-LD. Filtered views canonicalise
-// to the city page. Edge cache key includes `_city=<cookie>` (middleware).
+// the city page; Organization + WebSite JSON-LD. Filtered and paginated views
+// canonicalise to the city page (its ?page=N is the indexable one). Edge cache key includes `_city=<cookie>` (middleware).
 import Layout from '../layouts/Layout.astro';
 import Feed from '../components/Feed.astro';
 import JsonLd from '../components/JsonLd.astro';
@@ -12,18 +12,21 @@ import { SITE } from '@findlocal/shared';
 
 const city = Astro.locals.city;
 const state = await loadFeed(getDb(), city, Astro.url);
-const filtered = state.canonical !== '';
+const filtered = state.filterCanonical !== '';
+const paged = !filtered && state.page > 1;
+const beyond = state.page > state.pages;
 const jsonAlternate = `${SITE}/api/events?city=${encodeURIComponent(city.name)}`;
 ---
 <Layout
   title="Find Local — Discover Local Events: Concerts, Comedy, Theater & More"
   description={`Discover the best local events in ${city.name} and 46 other US cities. Browse concerts, comedy shows, live music, theater, and cultural experiences pulled straight from venue calendars. Free and paid events updated daily.`}
-  canonicalPath={filtered ? state.basePath : '/'}
-  noindex={filtered}
+  canonicalPath={filtered || paged ? state.basePath : '/'}
+  canonicalQuery={paged ? `page=${state.page}` : ''}
+  noindex={filtered || beyond}
   jsonAlternate={jsonAlternate}
   wide
 >
-  {!filtered && <JsonLd data={[organizationJsonLd(), webSiteJsonLd(city), webApplicationJsonLd()]} slot="head" />}
+  {!filtered && !paged && <JsonLd data={[organizationJsonLd(), webSiteJsonLd(city), webApplicationJsonLd()]} slot="head" />}
   <Feed
     state={state}
     heading={`What's on in ${city.name}`}
