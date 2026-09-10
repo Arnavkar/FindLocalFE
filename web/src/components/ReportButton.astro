@@ -1,0 +1,98 @@
+---
+// Island: "Something wrong?" → small form that POSTs to the FindLocalData
+// backend (the only write path the site has; this repo's D1 binding stays
+// read-only). Reports on recurring occurrences attach to their rule upstream
+// and trigger a re-check of the rule's evidence page.
+//
+// Env (build-time, optional): PUBLIC_REPORTS_API overrides the backend origin,
+// PUBLIC_TURNSTILE_SITE_KEY enables the Turnstile widget (the backend only
+// enforces it when its TURNSTILE_SECRET is set).
+import Icon from './Icon.astro';
+interface Props {
+  eventId: string;
+}
+const { eventId } = Astro.props;
+const api = (import.meta.env.PUBLIC_REPORTS_API as string | undefined)?.replace(/\/$/, '') || 'https://findlocaldata.onrender.com';
+const siteKey = (import.meta.env.PUBLIC_TURNSTILE_SITE_KEY as string | undefined) || '';
+const REASONS: [string, string][] = [
+  ['no_longer_happening', 'This event no longer happens'],
+  ['wrong_day_time', 'Wrong day or time'],
+  ['wrong_price', 'Wrong price'],
+  ['venue_closed', 'The venue has closed'],
+  ['other', 'Something else'],
+];
+---
+<details class="report" data-report data-api={api} data-event={eventId} data-sitekey={siteKey}>
+  <summary class="btn ghost"><Icon name="flag" size={18} /><span>Report</span></summary>
+  <form class="menu" novalidate>
+    <p class="lead">Something wrong with this listing?</p>
+    <label>
+      <span class="sr-only">Reason</span>
+      <select name="reason" required>
+        {REASONS.map(([value, label]) => <option value={value}>{label}</option>)}
+      </select>
+    </label>
+    <label>
+      <span class="sr-only">Details</span>
+      <textarea name="details" rows="3" maxlength="1000" placeholder="Optional: what did you see? (e.g. now on Thursdays at 8)"></textarea>
+    </label>
+    <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" class="hp" />
+    {siteKey && <div class="cf-turnstile" data-sitekey={siteKey} data-size="flexible"></div>}
+    <div class="row">
+      <button type="submit" class="btn orange">Send report</button>
+      <span class="status" data-status aria-live="polite"></span>
+    </div>
+  </form>
+</details>
+
+{siteKey && <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
+
+<script>
+  for (const box of document.querySelectorAll<HTMLDetailsElement>('[data-report]')) {
+    const form = box.querySelector('form')!;
+    const status = box.querySelector<HTMLElement>('[data-status]')!;
+    const api = box.dataset.api!;
+    const eventId = box.dataset.event!;
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const data = new FormData(form);
+      const token = (data.get('cf-turnstile-response') as string | null) ?? null;
+      const btn = form.querySelector<HTMLButtonElement>('button[type=submit]')!;
+      btn.disabled = true;
+      status.textContent = 'Sending…';
+      try {
+        const res = await fetch(`${api}/api/reports`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_id: eventId,
+            reason: data.get('reason'),
+            details: (data.get('details') as string | null)?.trim() || null,
+            website: (data.get('website') as string | null) || null,
+            turnstile_token: token,
+          }),
+        });
+        if (!res.ok) throw new Error(String(res.status));
+        status.textContent = 'Thanks — we will check it.';
+        form.reset();
+        setTimeout(() => { box.open = false; status.textContent = ''; btn.disabled = false; }, 1800);
+      } catch (e) {
+        status.textContent = e instanceof Error && e.message === '429' ? 'Too many reports, try later.' : 'Could not send. Try again.';
+        btn.disabled = false;
+      }
+    });
+  }
+</script>
+
+<style>
+  .report { position: relative; }
+  .report summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; }
+  .report summary::-webkit-details-marker { display: none; }
+  .menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 20; width: min(340px, 90vw); background: rgb(var(--surface)); border: 1px solid rgb(var(--border)); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); padding: 0.8rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .lead { margin: 0; font-weight: 700; font-size: 0.92rem; }
+  select, textarea { width: 100%; font: inherit; padding: 0.45rem 0.5rem; border: 1px solid rgb(var(--border)); border-radius: var(--radius-sm); background: rgb(var(--bg)); color: rgb(var(--text)); box-sizing: border-box; }
+  .row { display: flex; align-items: center; gap: 0.6rem; }
+  .status { font-size: 0.85rem; color: rgb(var(--text-2)); }
+  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
