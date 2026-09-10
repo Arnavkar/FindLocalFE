@@ -8,6 +8,7 @@ import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import EventCard from '../../components/EventCard.astro';
 import Icon from '../../components/Icon.astro';
 import JsonLd from '../../components/JsonLd.astro';
+import ReportButton from '../../components/ReportButton.astro';
 import SaveButton from '../../components/SaveButton.astro';
 import ShareButton from '../../components/ShareButton.astro';
 import { getDb, getEvent, listSeriesDates, listUpcomingEventsForVenue } from '../../lib/db.js';
@@ -113,6 +114,7 @@ const mapsHref = event?.venue_address ? `https://www.google.com/maps/search/?api
           </details>
         )}
         <SaveButton eventId={event.id} />
+        {!isPast && <ReportButton eventId={event.id} />}
       </div>
       {live && link && <a class="btn orange cta" href={link.href} rel="noopener nofollow" target="_blank">{link.label}</a>}
 
