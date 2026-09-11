@@ -117,11 +117,11 @@ describe('dates', () => {
 
 describe('filters', () => {
   it('parseFilters maps every key', () => {
-    const p = new URLSearchParams('when=weekend&cat=music,comedy,bogus&free=1&paid=1&max=25&tod=evening,morning&region=Brooklyn&q=%20jazz%20&page=3');
+    const p = new URLSearchParams('when=weekend&cat=music,comedy,bogus&free=1&paid=1&max=25&tod=evening,morning&region=Brooklyn&q=%20jazz%20&performer=%20Ann%20%20Patchett%20&page=3');
     const f = parseFilters(p, NY, NOW);
     expect(f).toEqual({
       city: 'New York', from: '2026-09-04', to: '2026-09-06', categories: ['music', 'comedy'], free: true, paid: true,
-      maxPrice: 25, timeOfDay: ['morning', 'evening'], region: 'Brooklyn', text: 'jazz', limit: 100, offset: 200,
+      maxPrice: 25, timeOfDay: ['morning', 'evening'], region: 'Brooklyn', text: 'jazz', performer: 'Ann Patchett', limit: 100, offset: 200,
     });
     const d = parseFilters(new URLSearchParams(''), NY, NOW);
     expect(d).toEqual({ city: 'New York', from: '2026-09-04', to: null, limit: 100, offset: 0 });
@@ -132,11 +132,13 @@ describe('filters', () => {
     expect(canonicalQuery(new URLSearchParams('q=jazz&when=today&cat=comedy,music,music&free=1&tod=evening'))).toBe('cat=music%2Ccomedy&free=1&q=jazz&tod=evening&when=today');
     expect(canonicalQuery(new URLSearchParams('page=2&max=20.5&region=Back+Bay'))).toBe('max=20.5&page=2&region=Back+Bay');
     expect(canonicalQuery(new URLSearchParams('when=2026-10-31'))).toBe('when=2026-10-31');
+    expect(canonicalQuery(new URLSearchParams('performer=Ann+Patchett&when=anytime'))).toBe('performer=Ann+Patchett');
   });
   it('filtersToQuery round-trips through parseFilters', () => {
     const q = filtersToQuery({ when: 'today', categories: ['music'], free: true, page: 2, text: 'x' });
     expect(q).toBe('cat=music&free=1&page=2&q=x&when=today');
     expect(filtersToQuery({})).toBe('');
+    expect(filtersToQuery({ performer: 'Ann Patchett' })).toBe('performer=Ann+Patchett');
     expect(filtersToQuery({ from: '2026-10-01', to: '2026-10-01', offset: 300 })).toBe('page=4&when=2026-10-01');
   });
 });

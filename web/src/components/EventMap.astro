@@ -2,6 +2,8 @@
 // One marker per venue with the number of listed events; popup links to the
 // venue page and the first few events.
 import type { City, EventRow } from '@findlocal/shared';
+import { imageUrl } from '@findlocal/shared';
+import { eventImage } from '../lib/format';
 import LeafletMap, { type MapMarker } from './LeafletMap.astro';
 interface Props {
   events: EventRow[];
@@ -18,6 +20,10 @@ for (const e of events) {
   }
   m.count += 1;
   if (m.items!.length < 4) m.items!.push({ label: e.title, href: `/event/${e.id}` });
+  if (!m.image) {
+    const img = imageUrl(eventImage(e), { width: 96, height: 96 });
+    if (img) m.image = img;
+  }
 }
 const markers = [...byVenue.values()].map(({ n: _n, ...m }) => m);
 ---

@@ -81,6 +81,7 @@ export class FindLocalMCP extends McpAgent<Env, unknown, CustomerProps> {
         price_max: z.number().optional().describe("Maximum ticket price in USD (events without a parsed price are excluded)."),
         time_of_day: z.enum(["morning", "afternoon", "evening"]).optional(),
         query: z.string().optional().describe("Free-text search over event title, venue name and performer/author names."),
+        performer: z.string().optional().describe("Only events featuring this performer/author/instructor (substring match on names)."),
         limit: z.number().int().min(1).max(200).optional().describe("Max events to return (default 50)."),
       },
       async (input) => {
@@ -204,10 +205,8 @@ export class FindLocalMCP extends McpAgent<Env, unknown, CustomerProps> {
         const gate = await this.gate();
         if (!gate.ok) return gate.response;
         try {
-          const [venue, events] = await Promise.all([
-            getVenue(this.env.DB, input.venue_id),
-            listUpcomingEventsForVenue(this.env.DB, input.venue_id, Math.min(input.limit ?? 20, 100)),
-          ]);
+          const venue = await getVenue(this.env.DB, input.venue_id);
+          const events = await listUpcomingEventsForVenue(this.env.DB, input.venue_id, Math.min(input.limit ?? 20, 100), venue ? { city: venue.city } : {});
           return jsonText({ venue: venue ? shapeVenue(venue) : { id: input.venue_id }, count: events.length, events: events.map((e) => shapeEvent(e)) });
         } catch (e: any) {
           return errText(`get_events_at_venue failed: ${e.message}`);
@@ -235,6 +234,7 @@ interface SearchInput {
   price_max?: number;
   time_of_day?: "morning" | "afternoon" | "evening";
   query?: string;
+  performer?: string;
   limit?: number;
 }
 
@@ -258,5 +258,6 @@ function buildFilters(city: City, p: SearchInput): EventFilters {
   if (p.price_max !== undefined) f.maxPrice = p.price_max;
   if (p.time_of_day) f.timeOfDay = [p.time_of_day];
   if (p.query) f.text = p.query;
+  if (p.performer) f.performer = p.performer;
   return f;
 }

@@ -1,52 +1,81 @@
 ---
-// /platform — the pitch for teams building on FindLocal data. Ported from the
-// old standalone public/platform.html into the site shell (header, city
-// picker, footer, self-hosted fonts). Reference docs live under /developers.
+// /platform — the pitch for venues, organisers and local sites who want live
+// local events without maintaining a calendar themselves. Non-developer
+// audience; the technical reference lives under /developers (index, api, mcp,
+// widgets) and web/src/lib/embed.ts (widget presets + attributes).
 import Layout from '../layouts/Layout.astro';
 import { CITIES } from '@findlocal/shared';
 export const prerender = true;
 const MCP_URL = 'https://mcp.findlocal.community/mcp';
 const cityCount = CITIES.length;
-const compare = [
-  ['Aggregates across sources', 'yes', 'no', 'no', 'no'],
-  ['Structured & machine-readable', 'yes', 'partial', 'partial', 'no'],
-  ['Includes venue-site / long-tail events', 'yes', 'no', 'no', 'partial'],
-  ['Kept current · past events retired', 'yes', 'yes', 'yes', 'no'],
-  ['Ready for apps, AI & products', 'yes', 'partial', 'partial', 'no'],
+
+const benefits = [
+  ['Nothing to maintain', 'No calendar plugin to update, no CMS component to babysit. Paste it once and it keeps working.'],
+  ['Always current', 'Venue calendars are re-scraped daily. Events that disappear from the source drop out of the feed too — no stale listings.'],
+  ['One feed, every venue in town', 'Not just yours — a shared local feed is useful to visitors even when they came for one venue.'],
+  ['Free to start', 'The widget and JSON API are free with no signup. The AI assistant connector has a free demo key.'],
 ] as const;
-const MARK = { yes: '✓', no: '✕', partial: '~' } as const;
-const MARK_LABEL = { yes: 'Yes', no: 'No', partial: 'Partial' } as const;
+
+const products = [
+  {
+    name: 'Widgets',
+    blurb: 'Embed one script tag. Renders a list, calendar and map of live events, follows light/dark theme, and resizes itself.',
+    label: 'any HTML page',
+    code: '<script src="https://findlocal.community/widget.js" data-widget="literary-new-england"></script>',
+    href: '/developers/widgets',
+    cta: 'Widget builder & reference',
+  },
+  {
+    name: 'JSON API',
+    blurb: 'A plain HTTPS GET with the same filters as the site\'s URLs. No key, no signup, CORS open.',
+    label: 'curl',
+    code: "curl 'https://findlocal.community/api/events?city=boston&when=weekend'",
+    href: '/developers/api',
+    cta: 'API reference',
+  },
+  {
+    name: 'AI assistants (MCP)',
+    blurb: 'Let Claude, Cursor or a ChatGPT-style client answer "what\'s on near me?" from live, sourced data.',
+    label: 'MCP endpoint',
+    code: MCP_URL,
+    href: '/developers/mcp',
+    cta: 'MCP reference',
+  },
+] as const;
+
 const steps = [
-  ['Verified venues', 'Start from a vetted venue list — real places with addresses, calendars and coordinates.'],
-  ['Continuous ingestion', 'Pull from venue calendars, ticketing feeds and recurring-event rules into one pipeline.'],
-  ['Normalize & fill gaps', 'Clean messy fields, resolve venues, structure dates, categories, prices and links.'],
-  ['Serve to your product', 'JSON API, MCP tools for assistants, or a widget you paste into any page.'],
-];
+  ['Verified venues', 'A vetted list of real venues — addresses, calendars and coordinates.'],
+  ['Continuous ingestion', 'Venue calendars, ticketing feeds and recurring-event rules, pulled in daily.'],
+  ['Normalize & fill gaps', 'Clean fields, resolved venues, structured dates, categories, prices and links.'],
+  ['Serve to your product', 'A widget, the JSON API, or an MCP tool for AI assistants — same data, three doors.'],
+] as const;
+
+const audiences = [
+  ['For venues', 'Show your own events without maintaining a calendar — the widget updates itself whenever your listings change.'],
+  ['For newsletters & local sites', 'Drop a widget or pull the API into your roundup; one feed covers every venue in town, not just the ones you track by hand.'],
+  ['For app builders', 'Query the JSON API or connect the MCP server so your app or agent always has fresh, sourced local event data.'],
+] as const;
+
 const sample = [
   { tag: 'Literary', title: 'Author talk & signing', where: 'Independent bookstore · Providence' },
   { tag: 'Comedy', title: 'Open mic night', where: 'Comedy club · Brooklyn' },
   { tag: 'Music', title: 'Friday jazz sessions', where: 'Jazz club · Cambridge' },
-  { tag: 'Community', title: 'Farmers market', where: 'Town green · Northampton' },
-  { tag: 'Parks', title: 'Ranger-led sunrise hike', where: 'National park · Denver' },
 ];
 ---
 <Layout
-  title="FindLocal Platform — Real local events for your product"
-  description={`Curated local event data across ${cityCount} US metros — cleaned, structured and updated daily. Connect it to your app, AI assistant, newsletter or site through the JSON API, the MCP server or an embeddable widget.`}
+  title="FindLocal Platform — Widgets, API & AI assistants for local events"
+  description={`Put live local events on your site, in your app, or in your AI assistant. Curated data across ${cityCount} US metros — cleaned, structured and updated daily — through an embeddable widget, a free JSON API, or the FindLocal MCP server.`}
   canonicalPath="/platform"
   wide
 >
   <section class="hero">
     <div>
       <p class="eyebrow">FindLocal Platform</p>
-      <h1>
-        <span class="line">Connect your <span class="rotator" aria-live="polite"><span class="rotator-track" data-rotator><span class="on">app</span><span>AI assistant</span><span>newsletter</span><span>website</span><span>agent</span></span></span></span>
-        <span class="line">to real local events.</span>
-      </h1>
-      <p class="lede">Curated local event data — cleaned, structured and kept current — ready for products that need to know what's happening nearby. {cityCount} US metros, thousands of venues, updated daily.</p>
+      <h1>Put live local events on your site, in your app, or in your AI assistant.</h1>
+      <p class="lede">Curated local event data — cleaned, structured and kept current — across {cityCount} US metros and thousands of venues, updated daily.</p>
       <div class="cta">
-        <a class="btn" href="#plug-in">Plug in FindLocal ↓</a>
-        <a class="btn ghost" href="/developers">Read the developer docs</a>
+        <a class="btn" href="/developers/widgets">Get the widget</a>
+        <a class="btn ghost" href="/developers">Read the docs</a>
       </div>
     </div>
     <div class="collage" aria-hidden="true">
@@ -60,24 +89,32 @@ const sample = [
     </div>
   </section>
 
-  <section id="better" class="sec">
-    <p class="eyebrow">How is FindLocal better</p>
-    <h2>Built for products that need local context.</h2>
-    <p class="lede">Other places list events for their own ecosystem. FindLocal curates across sources — venue websites, ticketing feeds, recurring rules — into one structured feed.</p>
-    <div class="table-wrap">
-      <table class="compare">
-        <thead>
-          <tr><th scope="col"></th><th scope="col" class="col-fl">FindLocal</th><th scope="col">Ticketmaster</th><th scope="col">Eventbrite</th><th scope="col">Social media</th></tr>
-        </thead>
-        <tbody>
-          {compare.map(([label, ...marks]) => (
-            <tr>
-              <td>{label}</td>
-              {marks.map((m, i) => <td class:list={{ 'col-fl': i === 0 }}><span class={`mark ${m}`} aria-label={MARK_LABEL[m]}>{MARK[m]}</span></td>)}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+  <section class="sec">
+    <p class="eyebrow">Why FindLocal</p>
+    <h2>Built for venues, organisers and local sites.</h2>
+    <div class="benefits">
+      {benefits.map(([h, p]) => (
+        <div class="benefit-card"><h3>{h}</h3><p>{p}</p></div>
+      ))}
+    </div>
+  </section>
+
+  <section id="products" class="sec">
+    <p class="eyebrow">Three ways in</p>
+    <h2>Pick the door that fits your product.</h2>
+    <p class="lede">Same underlying data, whichever you choose — a widget, the API, or an AI assistant.</p>
+    <div class="products">
+      {products.map((prod) => (
+        <div class="product-card">
+          <h3>{prod.name}</h3>
+          <p>{prod.blurb}</p>
+          <div class="codebox">
+            <div class="hd"><span>{prod.label}</span><button type="button" class="copy" data-copy-target={`#c-${prod.name.replace(/[^a-z]/gi, '').toLowerCase()}`}>Copy</button></div>
+            <pre id={`c-${prod.name.replace(/[^a-z]/gi, '').toLowerCase()}`}>{prod.code}</pre>
+          </div>
+          <a class="more" href={prod.href}>{prod.cta} →</a>
+        </div>
+      ))}
     </div>
   </section>
 
@@ -92,45 +129,11 @@ const sample = [
     <p class="muted">Want the long version? Read <a href="/blog/how-find-local-finds-events">how Find Local finds events the big platforms miss</a>.</p>
   </section>
 
-  <section id="plug-in" class="sec plug">
-    <p class="eyebrow">Plug in FindLocal</p>
-    <h2>Plug in FindLocal in a few minutes.</h2>
-    <p class="lede">Four doors to the same data — pick the one that fits your product. Full reference in the <a href="/developers">developer docs</a>.</p>
-
-    <div class="tabs" role="tablist" aria-label="Integration">
-      <button class="tab" role="tab" aria-selected="true" aria-controls="p-claude" id="t-claude">Claude</button>
-      <button class="tab" role="tab" aria-selected="false" aria-controls="p-cursor" id="t-cursor">Cursor</button>
-      <button class="tab" role="tab" aria-selected="false" aria-controls="p-cli" id="t-cli">Terminal</button>
-      <button class="tab" role="tab" aria-selected="false" aria-controls="p-api" id="t-api">JSON API</button>
-      <button class="tab" role="tab" aria-selected="false" aria-controls="p-widget" id="t-widget">Widget</button>
-    </div>
-
-    <div class="panel" id="p-claude" role="tabpanel" aria-labelledby="t-claude">
-      <div class="codebox"><div class="hd"><span>Claude · Connectors</span><button type="button" class="copy" data-copy-target="#c-claude">Copy URL</button></div><pre id="c-claude">{MCP_URL}</pre></div>
-      <ol class="steps"><li>Open Claude and go to <strong>Settings → Connectors → Add custom connector</strong>.</li><li>Paste the MCP URL and connect. Enter the account key <code>demo-free</code> to try it.</li><li>In a chat, keep the <strong>FindLocal</strong> connector on and ask what's happening nearby.</li></ol>
-      <p class="muted"><a href="/developers/mcp">MCP reference →</a></p>
-    </div>
-    <div class="panel" id="p-cursor" role="tabpanel" aria-labelledby="t-cursor" hidden>
-      <div class="codebox"><div class="hd"><span>~/.cursor/mcp.json</span><button type="button" class="copy" data-copy-target="#c-cursor">Copy</button></div><pre id="c-cursor">{`{
-  "mcpServers": {
-    "findlocal": { "url": "${MCP_URL}" }
-  }
-}`}</pre></div>
-      <ol class="steps"><li>Add the server block to your Cursor MCP config.</li><li>Restart Cursor (or reload MCP servers).</li><li>Ask your agent about local events.</li></ol>
-    </div>
-    <div class="panel" id="p-cli" role="tabpanel" aria-labelledby="t-cli" hidden>
-      <div class="codebox"><div class="hd"><span>terminal</span><button type="button" class="copy" data-copy-target="#c-cli">Copy</button></div><pre id="c-cli">{`claude mcp add --transport http findlocal ${MCP_URL}`}</pre></div>
-      <ol class="steps"><li>Run the command in your terminal.</li><li>Start a session and ask about upcoming local events; the first call opens the authorization page.</li></ol>
-    </div>
-    <div class="panel" id="p-api" role="tabpanel" aria-labelledby="t-api" hidden>
-      <div class="codebox"><div class="hd"><span>curl</span><button type="button" class="copy" data-copy-target="#c-api">Copy</button></div><pre id="c-api">{`curl 'https://findlocal.community/api/events?city=boston&when=weekend&cat=music&limit=5'`}</pre></div>
-      <ol class="steps"><li>No key, no signup, CORS open. Same filters as the site's URLs.</li><li>Every listing page links its JSON twin via <code>&lt;link rel="alternate" type="application/json"&gt;</code>.</li></ol>
-      <p class="muted"><a href="/developers/api">API reference →</a></p>
-    </div>
-    <div class="panel" id="p-widget" role="tabpanel" aria-labelledby="t-widget" hidden>
-      <div class="codebox"><div class="hd"><span>any HTML page</span><button type="button" class="copy" data-copy-target="#c-widget">Copy</button></div><pre id="c-widget">{`<script src="https://findlocal.community/widget.js" data-widget="literary-new-england"></script>`}</pre></div>
-      <ol class="steps"><li>Paste one script tag where the calendar should appear.</li><li>It renders a list, calendar and map of live events with a "Powered by FindLocal" credit, and resizes itself.</li></ol>
-      <p class="muted"><a href="/developers/widgets">Widget builder and reference →</a></p>
+  <section class="sec">
+    <div class="audience-strip">
+      {audiences.map(([h, p]) => (
+        <div class="audience"><h3>{h}</h3><p>{p}</p></div>
+      ))}
     </div>
   </section>
 
@@ -143,7 +146,7 @@ const sample = [
     </div>
     <div class="feed" aria-hidden="true">
       <div class="feed-bar"><span class="chip active">This weekend</span><span class="chip">Music</span><span class="chip">Free</span><span class="chip">Map</span></div>
-      {sample.slice(0, 3).map((s) => <div class="feed-card"><span class="thumb">{s.tag.slice(0, 1)}</span><div><div class="title">{s.title}</div><div class="sub">{s.where}</div></div></div>)}
+      {sample.map((s) => <div class="feed-card"><span class="thumb">{s.tag.slice(0, 1)}</span><div><div class="title">{s.title}</div><div class="sub">{s.where}</div></div></div>)}
     </div>
   </section>
 </Layout>
@@ -151,73 +154,48 @@ const sample = [
 <script>
   import { wireCopyButtons } from '../lib/copy.js';
   wireCopyButtons();
-  // Plug-in tabs.
-  const tabs = document.querySelectorAll<HTMLButtonElement>('.plug [role="tab"]');
-  tabs.forEach((t) => t.addEventListener('click', () => {
-    tabs.forEach((o) => {
-      const on = o === t;
-      o.setAttribute('aria-selected', on ? 'true' : 'false');
-      const panel = document.getElementById(o.getAttribute('aria-controls') ?? '');
-      if (panel) panel.hidden = !on;
-    });
-  }));
-  // Hero word rotator (respects reduced motion).
-  const track = document.querySelector<HTMLElement>('[data-rotator]');
-  if (track && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    const words = [...track.children] as HTMLElement[];
-    let i = 0;
-    setInterval(() => {
-      words[i]?.classList.remove('on');
-      i = (i + 1) % words.length;
-      words[i]?.classList.add('on');
-    }, 2400);
-  }
 </script>
 
 <style>
   .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; font-weight: 700; color: rgb(var(--orange)); margin: 0 0 0.5rem; }
   .hero { display: grid; gap: 2rem; align-items: center; padding: 1.5rem 0 2.5rem; }
   .hero h1 { font-size: clamp(2rem, 5vw, 3rem); }
-  .hero .line { display: block; }
-  .rotator { display: inline-block; color: rgb(var(--teal)); position: relative; }
-  .rotator-track span { display: none; }
-  .rotator-track span.on { display: inline; }
   .cta { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.5rem; }
   .collage { position: relative; min-height: 320px; }
   .poster { position: absolute; width: 230px; padding: 0.9rem; border-radius: var(--radius); background: rgb(var(--surface)); border: 1px solid rgb(var(--border)); box-shadow: var(--shadow-md); }
   .poster .tag { display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: rgb(var(--teal)); background: rgb(var(--teal-50)); padding: 0.15rem 0.5rem; border-radius: 999px; margin-bottom: 0.4rem; }
   .poster .title { font-family: var(--font-head); font-weight: 700; }
   .poster .where { color: rgb(var(--text-2)); font-size: 0.85rem; }
-  .p1 { left: 0; top: 0; transform: rotate(-3deg); } .p2 { right: 0; top: 30px; transform: rotate(2deg); } .p3 { left: 12%; top: 130px; transform: rotate(1deg); } .p4 { right: 8%; top: 190px; transform: rotate(-2deg); } .p5 { left: 35%; top: 250px; transform: rotate(3deg); }
-  @media (min-width: 900px) { .hero { grid-template-columns: 1.1fr 1fr; padding: 3rem 0 3.5rem; } .collage { min-height: 400px; } }
+  .p1 { left: 0; top: 0; transform: rotate(-3deg); } .p2 { right: 0; top: 30px; transform: rotate(2deg); } .p3 { left: 20%; top: 150px; transform: rotate(1deg); }
+  @media (min-width: 900px) { .hero { grid-template-columns: 1.1fr 1fr; padding: 3rem 0 3.5rem; } .collage { min-height: 260px; } }
   @media (max-width: 899px) { .collage { display: none; } }
 
   .sec { padding: 2.5rem 0; border-top: 1px solid rgb(var(--border)); scroll-margin-top: 4rem; }
   .sec h2 { font-size: clamp(1.5rem, 3.5vw, 2rem); margin-bottom: 0.6rem; }
-  .table-wrap { overflow-x: auto; border: 1px solid rgb(var(--border)); border-radius: var(--radius); margin-top: 1rem; }
-  .compare { border-collapse: collapse; width: 100%; font-size: 0.92rem; min-width: 560px; }
-  .compare th, .compare td { padding: 0.65rem 0.9rem; border-bottom: 1px solid rgb(var(--border)); text-align: center; }
-  .compare th:first-child, .compare td:first-child { text-align: left; }
-  .compare th { font-size: 0.8rem; color: rgb(var(--text-2)); background: rgb(var(--surface-sunken)); }
-  .compare tr:last-child td { border-bottom: 0; }
-  .col-fl { background: rgb(var(--teal) / 0.06); font-weight: 700; color: rgb(var(--teal)); }
-  .mark { display: inline-flex; width: 26px; height: 26px; border-radius: 999px; align-items: center; justify-content: center; font-weight: 700; }
-  .mark.yes { background: rgb(var(--success) / 0.15); color: rgb(var(--success)); }
-  .mark.no { background: rgb(var(--error) / 0.12); color: rgb(var(--error)); }
-  .mark.partial { background: rgb(var(--warning) / 0.18); color: rgb(var(--text)); }
+
+  .benefits { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top: 1.2rem; }
+  .benefit-card { border: 1px solid rgb(var(--border)); border-radius: var(--radius); padding: 1.1rem; background: rgb(var(--surface)); }
+  .benefit-card h3 { margin-bottom: 0.4rem; }
+  .benefit-card p { margin: 0; color: rgb(var(--text-2)); font-size: 0.92rem; }
+
+  .products { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-top: 1.2rem; }
+  .product-card { border: 1px solid rgb(var(--border)); border-radius: var(--radius); padding: 1.2rem; background: rgb(var(--surface)); display: flex; flex-direction: column; gap: 0.6rem; }
+  .product-card p { margin: 0; color: rgb(var(--text-2)); font-size: 0.92rem; }
+  .product-card .more { font-weight: 700; margin-top: auto; }
+  .codebox { border: 1px solid rgb(var(--border)); border-radius: var(--radius); overflow: hidden; background: rgb(var(--surface-sunken)); }
+  .codebox .hd { display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.8rem; font-size: 0.78rem; color: rgb(var(--text-2)); border-bottom: 1px solid rgb(var(--border)); background: rgb(var(--surface)); }
+  .codebox pre { margin: 0; padding: 0.9rem 1rem; overflow-x: auto; font-size: 0.82rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+  .copy { font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 999px; border: 1px solid rgb(var(--border)); background: rgb(var(--surface)); color: rgb(var(--teal)); cursor: pointer; }
+
   .flow { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin: 1.2rem 0 1rem; }
   .flow-card { border: 1px solid rgb(var(--border)); border-radius: var(--radius); padding: 1.1rem; background: rgb(var(--surface)); }
   .flow-card .n { width: 30px; height: 30px; border-radius: 999px; background: rgb(var(--teal)); color: rgb(var(--text-inverse)); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; margin-bottom: 0.6rem; }
   .flow-card p { margin: 0.3rem 0 0; color: rgb(var(--text-2)); font-size: 0.92rem; }
-  .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 1.2rem 0 1rem; }
-  .tab { padding: 0.4rem 0.9rem; border-radius: 999px; border: 1px solid rgb(var(--border)); background: rgb(var(--surface)); color: rgb(var(--text-2)); font-weight: 600; cursor: pointer; }
-  .tab[aria-selected='true'] { background: rgb(var(--teal)); border-color: rgb(var(--teal)); color: rgb(var(--text-inverse)); }
-  .codebox { border: 1px solid rgb(var(--border)); border-radius: var(--radius); overflow: hidden; background: rgb(var(--surface-sunken)); max-width: 46rem; }
-  .codebox .hd { display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.8rem; font-size: 0.78rem; color: rgb(var(--text-2)); border-bottom: 1px solid rgb(var(--border)); background: rgb(var(--surface)); }
-  .codebox pre { margin: 0; padding: 0.9rem 1rem; overflow-x: auto; font-size: 0.85rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  .copy { font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 999px; border: 1px solid rgb(var(--border)); background: rgb(var(--surface)); color: rgb(var(--teal)); cursor: pointer; }
-  .steps { max-width: 46rem; padding-left: 1.2rem; color: rgb(var(--text-2)); }
-  .steps li { margin: 0.3rem 0; }
+
+  .audience-strip { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .audience h3 { color: rgb(var(--teal)); margin-bottom: 0.35rem; }
+  .audience p { margin: 0; color: rgb(var(--text-2)); font-size: 0.92rem; }
+
   .community { display: grid; gap: 2rem; align-items: center; }
   @media (min-width: 800px) { .community { grid-template-columns: 1fr 1fr; } }
   .feed { border: 1px solid rgb(var(--border)); border-radius: var(--radius); padding: 0.9rem; background: rgb(var(--surface)); box-shadow: var(--shadow-md); }

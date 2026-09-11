@@ -15,6 +15,10 @@ describe('readCookie', () => {
 });
 
 describe('cacheQueryFor', () => {
+  it('keeps /venues sort/type (plus q from the contract) so filtered directories never share an entry', () => {
+    expect(cacheQueryFor(u('/venues?sort=upcoming&type=Bookstore&q=long&utm=1'), 'Boston')).toBe('q=long&sort=upcoming&type=Bookstore&_city=Boston');
+    expect(cacheQueryFor(u('/venues?sort=&type=%20'), null)).toBe('_city=Boston');
+  });
   it('canonicalises known params, drops unknown ones and defaults', () => {
     expect(cacheQueryFor(u('/city/boston?utm=1&when=anytime&cat=music,nope&page=1'), null)).toBe('cat=music');
     expect(cacheQueryFor(u('/city/boston?when=weekend&cat=comedy,music&tod=evening'), null)).toBe('cat=music%2Ccomedy&tod=evening&when=weekend');

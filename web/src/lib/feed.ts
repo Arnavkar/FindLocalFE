@@ -111,6 +111,7 @@ export function toQueryable(s: FeedState): QueryableFilters {
   if (f.timeOfDay?.length) q.timeOfDay = f.timeOfDay;
   if (f.region) q.region = f.region;
   if (f.text) q.text = f.text;
+  if (f.performer) q.performer = f.performer;
   return q;
 }
 
@@ -135,7 +136,7 @@ export function pageHref(s: FeedState, page: number): string {
   return `${s.basePath}${query ? `?${query}` : ''}`;
 }
 
-/** Number of filter groups in use (FAB badge): when, categories, price, max price, time, area, text. */
+/** Number of filter groups in use (FAB badge): when, categories, price, max price, time, area, text, performer. */
 export function activeFilterCount(s: FeedState): number {
   const f = s.filters;
   let n = 0;
@@ -146,6 +147,7 @@ export function activeFilterCount(s: FeedState): number {
   if (f.timeOfDay?.length) n++;
   if (f.region) n++;
   if (f.text) n++;
+  if (f.performer) n++;
   return n;
 }
 
@@ -162,5 +164,6 @@ export function filterSummary(s: FeedState): string {
   if (s.filters.timeOfDay?.length) bits.push(s.filters.timeOfDay.join('/'));
   if (s.filters.region) bits.push(`in ${s.filters.region}`);
   if (s.filters.text) bits.push(`matching “${s.filters.text}”`);
+  if (s.filters.performer) bits.push(`featuring “${s.filters.performer}”`);
   return bits.join(' · ');
 }

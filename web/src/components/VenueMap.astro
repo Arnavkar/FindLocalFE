@@ -1,5 +1,6 @@
 ---
 import type { City, VenueRow } from '@findlocal/shared';
+import { imageUrl } from '@findlocal/shared';
 import LeafletMap, { type MapMarker } from './LeafletMap.astro';
 interface Props {
   venues: VenueRow[];
@@ -16,6 +17,7 @@ const markers: MapMarker[] = venues
     title: v.name,
     href: `/venue/${v.id}`,
     subtitle: [v.address, `${v.upcoming} upcoming`].filter(Boolean).join(' · '),
+    image: imageUrl(v.image, { width: 96, height: 96 }) ?? undefined,
   }));
 ---
 <LeafletMap markers={markers} center={{ lat: city.lat, lng: city.lng, zoom: city.zoom }} tall={tall} label={`Map of venues in ${city.name}`} />

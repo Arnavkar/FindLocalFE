@@ -11,13 +11,13 @@ import VenueMap from '../../components/VenueMap.astro';
 import { getDb, getVenue, listUpcomingEventsForVenue } from '../../lib/db.js';
 import { cleanText, truncate } from '../../lib/format.js';
 import { breadcrumbJsonLd, venueJsonLd } from '../../lib/jsonld.js';
-import { SITE, getCity, isUuid } from '@findlocal/shared';
+import { SITE, getCity, imageUrl, isUuid } from '@findlocal/shared';
 
 const id = Astro.params.id ?? '';
 const venue = isUuid(id) ? await getVenue(getDb(), id) : null;
 if (!venue || venue.is_active !== 1) Astro.response.status = 404;
 const city = venue ? getCity(venue.city) : undefined;
-const events = venue && venue.is_active === 1 ? await listUpcomingEventsForVenue(getDb(), venue.id, 100) : [];
+const events = venue && venue.is_active === 1 ? await listUpcomingEventsForVenue(getDb(), venue.id, 500, { city: venue.city }) : [];
 const description = venue ? cleanText(venue.description) : '';
 const metaDescription = venue
   ? truncate(description || [`Upcoming events at ${venue.name}`, venue.address, [venue.region, venue.city].filter(Boolean).join(', ')].filter(Boolean).join(' · '), 160)
@@ -48,7 +48,7 @@ const mapsHref = venue?.address ? `https://www.google.com/maps/search/?api=1&que
     <Breadcrumbs crumbs={crumbs} />
     <BackLink href="/venues" label={city ? `All venues in ${city.name}` : 'All venues'} />
     <header class="venue-head">
-      {venue.image && <img class="photo" src={venue.image} alt="" width="240" height="240" decoding="async" fetchpriority="high" />}
+      {venue.image && <img class="photo" src={imageUrl(venue.image, { width: 320, height: 320 })} alt="" width="240" height="240" decoding="async" fetchpriority="high" />}
       <div>
         <h1>{venue.name}</h1>
         <p class="muted">
@@ -67,7 +67,10 @@ const mapsHref = venue?.address ? `https://www.google.com/maps/search/?api=1&que
     {events.length === 0 ? (
       <p class="empty">Nothing listed right now — listings update daily. {city && <a href={`/city/${city.slug}`}>See what else is on in {city.name}</a>}.</p>
     ) : (
-      <EventList events={events} tz={city?.tz ?? 'America/New_York'} />
+      <>
+        <EventList events={events} tz={city?.tz ?? 'America/New_York'} />
+        {venue.upcoming > events.length && <p class="muted">Showing the first {events.length} of {venue.upcoming} upcoming events.</p>}
+      </>
     )}
   </Layout>
 )}

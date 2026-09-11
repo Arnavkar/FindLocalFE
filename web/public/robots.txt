@@ -27,6 +27,8 @@ Disallow: /*?region=
 Disallow: /*&region=
 Disallow: /*?q=
 Disallow: /*&q=
+Disallow: /*?performer=
+Disallow: /*&performer=
 Disallow: /*?view=
 Disallow: /*&view=
 

@@ -1,9 +1,9 @@
 import { env } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
-  categoryCounts, countUpcomingEvents, countUpcomingEventsByCity, countUpcomingEventsForCities, getCity, getEvent, getEventsByIds, getVenue, listRegions,
+  categoryCounts, countUpcomingEvents, countUpcomingEventsByCity, countUpcomingEventsForCities, countUpcomingEventsForVenue, getCity, getEvent, getEventsByIds, getVenue, listRegions,
   listSeriesDates, listSitemapEvents, listSitemapVenues, listUpcomingEvents, listUpcomingEventsForCities, listUpcomingEventsForVenue,
-  listVenues, parseFilters, searchVenuesByName, type EventFilters,
+  listVenues, listVenueTypes, parseFilters, searchVenuesByName, type EventFilters,
 } from '../src/index.js';
 import { D, EVENTS, eid, seed, TODAY, V } from './seed.js';
 
@@ -48,11 +48,22 @@ describe('listUpcomingEvents', () => {
 
   it('parses performers JSON (objects, and legacy bare strings) and searches them by text', async () => {
     const jazz = byTitle(await listUpcomingEvents(db, bos()), 'Afternoon Jazz')!;
-    expect(jazz.performers).toEqual([{ name: 'Esperanza Spalding', role: 'headliner' }, { name: 'Local Trio', role: 'support' }]);
+    expect(jazz.performers).toEqual([{ name: 'Esperanza Spalding', role: 'headliner', url: 'https://example.com/zzqurltoken' }, { name: 'Local Trio', role: 'support' }]);
     expect(byTitle(await listUpcomingEvents(db, bos()), 'Late Show')!.performers).toEqual([]);
     const legacy = byTitle(await listUpcomingEvents(db, { city: 'Providence', from: TODAY }), 'Author Talk: Debut Novel')!;
     expect(legacy.performers).toEqual([{ name: 'Legacy Stringname', role: 'performer' }]);
     expect(titles(await listUpcomingEvents(db, bos({ text: 'esperanza' })))).toEqual(['Afternoon Jazz']);
+  });
+
+  it('text search matches performer names, not roles or urls; performer filter is name-only too', async () => {
+    expect(titles(await listUpcomingEvents(db, bos({ text: 'headliner' })))).not.toContain('Afternoon Jazz');
+    expect(titles(await listUpcomingEvents(db, bos({ text: 'zzqurltoken' })))).toEqual([]);
+    expect(titles(await listUpcomingEvents(db, bos({ performer: 'local trio' })))).toEqual(['Afternoon Jazz']);
+    expect(titles(await listUpcomingEvents(db, bos({ performer: 'headliner' })))).toEqual([]);
+    expect(titles(await listUpcomingEvents(db, bos({ performer: '%' })))).toEqual([]);
+    expect(await countUpcomingEvents(db, bos({ performer: 'Esperanza' }))).toBe(1);
+    const legacy = await listUpcomingEvents(db, { city: 'Providence', from: TODAY, performer: 'Legacy' });
+    expect(titles(legacy)).toEqual(['Author Talk: Debut Novel']);
   });
 
   it('includeDeleted and paging', async () => {
@@ -207,6 +218,40 @@ describe('venues', () => {
     expect(ev.length).toBe(3);
     expect(ev[0]!.title).toBe('The Headliners');
     expect(titles(await listUpcomingEventsForVenue(db, V.paradise))).not.toContain('Past Gig');
+  });
+  it('listVenues: sort=upcoming, q (escaped LIKE), type (case-insensitive); default order unchanged', async () => {
+    const byUpcoming = await listVenues(db, { city: 'Boston', sort: 'upcoming' });
+    const counts = byUpcoming.map((v) => v.upcoming);
+    expect(counts).toEqual([...counts].sort((a, b) => b - a));
+    expect(byUpcoming[0]!.upcoming).toBeGreaterThan(0); // sort=upcoming implies withUpcoming
+    expect((await listVenues(db, { city: 'Boston', q: 'sinc' })).map((v) => v.name)).toEqual(['The Sinclair']);
+    expect((await listVenues(db, { city: 'Boston', q: '%' })).length).toBe(0);
+    expect((await listVenues(db, { city: 'Boston', q: '   ' })).map((v) => v.name)).toEqual(['Paradise Rock Club', 'The Sinclair']);
+    expect((await listVenues(db, { city: 'Portland ME', type: 'BOOKSTORE' })).map((v) => v.name)).toEqual(['Longfellow Books']);
+    expect((await listVenues(db, { city: 'Boston', type: 'bookstore' })).length).toBe(0);
+    expect(await listVenueTypes(db, 'Boston')).toEqual([{ type: 'music venue', count: 2 }]); // inactive Closed Club (bar) excluded
+  });
+  it('venue-scoped helpers agree: city-tz today, recurrence over the venue, count == list, non-Boston venues work', async () => {
+    // Trivia Night (Boston) keeps its series info through the venue CTE.
+    const sinclair = await listUpcomingEventsForVenue(db, V.sinclair, 500);
+    for (const t of sinclair.filter((r) => r.title === 'Trivia Night')) {
+      expect(t.series_count).toBe(8);
+      expect(t.series_image).toBe('https://img/trivia-2.jpg');
+    }
+    expect((await getVenue(db, V.sinclair))!.upcoming).toBe(sinclair.length);
+    expect(await countUpcomingEventsForVenue(db, V.sinclair, 'Boston')).toBe(sinclair.length);
+    // A New York venue: recurring "Open Mic" is found and flagged (the old API path scoped this to Boston).
+    const brighton = await listUpcomingEventsForVenue(db, V.brighton, 500, { city: 'New York' });
+    const openMic = brighton.filter((r) => r.title === 'Open Mic');
+    expect(openMic.length).toBeGreaterThan(1);
+    for (const o of openMic) expect(o.series_count).toBe(openMic.length);
+    // Parity with the filter-contract path the JSON API uses.
+    const viaFilters = await listUpcomingEvents(db, { city: 'New York', from: TODAY, venueId: V.brighton, limit: 500 });
+    expect(viaFilters.map((r) => r.id)).toEqual(brighton.map((r) => r.id));
+    expect(viaFilters.map((r) => r.series_count)).toEqual(brighton.map((r) => r.series_count));
+    // offset paging + city lookup when the caller doesn't pass it.
+    const page2 = await listUpcomingEventsForVenue(db, V.brighton, 2, { offset: 2 });
+    expect(page2.map((r) => r.id)).toEqual(brighton.slice(2, 4).map((r) => r.id));
   });
 });
 
