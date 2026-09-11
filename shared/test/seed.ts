@@ -32,6 +32,7 @@ interface Ev {
   image?: string | null;
   deleted?: boolean;
   source?: string;
+  performers?: { name: string; role: string }[] | string[];
 }
 
 let n = 0;
@@ -55,6 +56,7 @@ function ev(e: Ev) {
     image: e.image === undefined ? null : e.image,
     deleted: e.deleted ?? false,
     source: e.source ?? 'scraper_cloudflare',
+    performers: e.performers ?? [],
   });
 }
 
@@ -64,7 +66,7 @@ for (let w = 0; w < 8; w++) {
 }
 // Boston singletons, various times / prices / categories.
 ev({ venue: V.sinclair, city: 'Boston', region: 'Cambridge', title: 'Morning Yoga', date: D(2), time: '08:00', category: 'fitness', event_type: ['yoga'], price: '$15', price_amount: 15 });
-ev({ venue: V.sinclair, city: 'Boston', region: 'Cambridge', title: 'Afternoon Jazz', date: D(2), time: '14:30', category: 'music', event_type: ['Live Jazz Music'], price: '$25.00', price_amount: 25 });
+ev({ venue: V.sinclair, city: 'Boston', region: 'Cambridge', title: 'Afternoon Jazz', date: D(2), time: '14:30', category: 'music', event_type: ['Live Jazz Music'], price: '$25.00', price_amount: 25, performers: [{ name: 'Esperanza Spalding', role: 'headliner' }, { name: 'Local Trio', role: 'support' }] });
 ev({ venue: V.sinclair, city: 'Boston', region: 'Cambridge', title: 'Late Show', date: D(2), time: '23:30', category: 'comedy', event_type: ['comedy'], price: '$40', price_amount: 40 });
 ev({ venue: V.sinclair, city: 'Boston', region: 'Cambridge', title: 'After Hours DJ', date: D(3), time: '01:00', category: 'nightlife', event_type: ['dj set'], price: '$10', price_amount: 10 });
 ev({ venue: V.paradise, city: 'Boston', region: 'Allston', title: 'The Headliners', date: D(0), time: '20:00', category: 'music', price: '$35.50', price_amount: 35.5, source: 'ticketmaster', image: 'https://img/headliners.jpg' });
@@ -98,7 +100,7 @@ for (let i = 0; i < 12; i++) {
 
 // New England literary fixture (region-group / multi-city queries).
 ev({ venue: V.sinclair, city: 'Boston', region: 'Cambridge', title: 'Poetry Reading', date: D(3), time: '19:00', category: 'literary', event_type: ['poetry'], price: 'Free', price_amount: 0 });
-ev({ venue: V.athenaeum, city: 'Providence', region: 'Providence', title: 'Author Talk: Debut Novel', date: D(2), time: '18:00', category: 'literary', event_type: ['author talk'], price: 'Free', price_amount: 0 });
+ev({ venue: V.athenaeum, city: 'Providence', region: 'Providence', title: 'Author Talk: Debut Novel', date: D(2), time: '18:00', category: 'literary', event_type: ['author talk'], price: 'Free', price_amount: 0, performers: ['Legacy Stringname'] });
 ev({ venue: V.athenaeum, city: 'Providence', region: 'Providence', title: 'Book Club', date: D(5), time: '18:30', category: 'literary', event_type: ['book club'] });
 ev({ venue: V.athenaeum, city: 'Providence', region: 'Providence', title: 'Cancelled Signing', date: D(9), time: '18:00', category: 'literary', deleted: true });
 ev({ venue: V.athenaeum, city: 'Providence', region: 'Providence', title: 'Athenaeum Concert', date: D(4), time: '20:00', category: 'music' });
@@ -123,14 +125,14 @@ export async function seed(db: D1Database): Promise<void> {
   );
   const es = db.prepare(
     `INSERT INTO events (id, venue_id, city, region, source, external_id, title, event_date, start_time, category,
-       event_type, price, price_amount, image_url, is_deleted, updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       event_type, performers, price, price_amount, image_url, is_deleted, updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   );
   await db.batch([
     ...venues.map((v) => vs.bind(...v)),
     ...EVENTS.map((e, i) =>
       es.bind(e.id, e.venue, e.city, e.region, e.source, `ext-${i}`, e.title, e.date, e.time, e.category,
-        JSON.stringify(e.event_type), e.price, e.price_amount, e.image, e.deleted ? 1 : 0, `2026-01-01T00:00:${String(i % 60).padStart(2, '0')}.000Z`),
+        JSON.stringify(e.event_type), JSON.stringify(e.performers), e.price, e.price_amount, e.image, e.deleted ? 1 : 0, `2026-01-01T00:00:${String(i % 60).padStart(2, '0')}.000Z`),
     ),
   ]);
 }

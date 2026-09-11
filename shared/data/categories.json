@@ -28,7 +28,7 @@
     "brewery": "food_drink", "restaurant": "food_drink", "cafe": "food_drink", "winery": "food_drink", "distillery": "food_drink", "cidery": "food_drink", "food_hall": "food_drink", "food hall": "food_drink",
     "outdoors": "parks",
     "community center": "community", "community_center": "community", "church": "community",
-    "market": "market",
+    "market": "market", "farmers market": "market", "festival": "festival", "fairground": "festival",
     "library": "literary", "public library": "literary", "literary organization": "literary", "literary org": "literary", "writing center": "literary"
   },
   "community_map": { "Music": "music", "Dance": "dance", "Comedy": "comedy", "Theater": "theater", "Culture": "art" },
