@@ -45,10 +45,14 @@ type RegionOption = FeedState['regions'][number];
             </label>
           ))}
         </div>
-        <label class="date-row">
-          <span>Or pick a date</span>
-          <input type="date" name="when" value={state.whenDate ?? ''} class:list={['chip', { active: !!state.whenDate }]} />
-        </label>
+        <div class="date-row">
+          <span>Or pick dates</span>
+          <label class="visually-hidden" for="sheet-when">From date</label>
+          <input id="sheet-when" type="date" name="when" value={state.whenDate ?? ''} class:list={['chip', { active: !!state.whenDate }]} />
+          <span aria-hidden="true">to</span>
+          <label class="visually-hidden" for="sheet-until">To date (optional)</label>
+          <input id="sheet-until" type="date" name="until" value={state.whenUntil ?? ''} class:list={['chip', { active: !!state.whenUntil }]} />
+        </div>
       </section>
 
       {state.categoryOptions.length > 0 && (
@@ -136,7 +140,7 @@ type RegionOption = FeedState['regions'][number];
   .chip { cursor: pointer; user-select: none; }
   .chip:has(:checked) { background: rgb(var(--teal)); border-color: rgb(var(--teal)); color: rgb(var(--text-inverse)); }
   .chip:has(:focus-visible) { outline: 2px solid rgb(var(--orange)); outline-offset: 2px; }
-  .date-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.7rem; font-size: 0.85rem; color: rgb(var(--text-2)); }
+  .date-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.7rem; font-size: 0.85rem; color: rgb(var(--text-2)); }
   .date-row input[type='date'] { padding: 0.3rem 0.7rem; background: rgb(var(--surface-accent)); border: 1px solid rgb(var(--border)); color: rgb(var(--text-2)); font-size: 0.85rem; }
   .date-row input.active { background: rgb(var(--teal)); color: rgb(var(--text-inverse)); border-color: rgb(var(--teal)); }
   .sheet-foot { padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom)); border-top: 1px solid rgb(var(--border)); background: rgb(var(--bg)); }

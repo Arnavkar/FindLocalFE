@@ -1,6 +1,7 @@
 ---
 import { imageUrl, type EventRow } from '@findlocal/shared';
-import { cardDateLabel, categoryLabel, eventImage, leadPerformerLine, priceLabel, shortPriceLabel } from '../lib/format.js';
+import { cardDateLabel, eventImage, leadPerformerLine, priceLabel, shortPriceLabel } from '../lib/format.js';
+import CategoryArt from './CategoryArt.astro';
 import Icon from './Icon.astro';
 interface Props {
   event: EventRow;
@@ -15,7 +16,6 @@ const imgSrcSet = img ? `${imageUrl(img, { width: 1280, height: 720 })} 2x` : un
 const price = priceLabel(event);
 const pillPrice = shortPriceLabel(event);
 const where = [event.venue_name, event.region ?? event.venue_region].filter(Boolean).join(' · ');
-const placeholder = categoryLabel(event.category) || 'Event';
 const who = leadPerformerLine(event.performers ?? []);
 ---
 <a class="card" href={`/event/${event.id}`}>
@@ -23,7 +23,7 @@ const who = leadPerformerLine(event.performers ?? []);
     {img ? (
       <img src={imgSrc} srcset={imgSrcSet} alt="" loading={eager ? 'eager' : 'lazy'} decoding="async" width="640" height="360" />
     ) : (
-      <div class="placeholder" aria-hidden="true">{placeholder}</div>
+      <CategoryArt category={event.category} />
     )}
     {price && <span class="pill price" title={price}>{pillPrice}</span>}
     {event.series_count > 1 && <span class="pill recurring">↻ Recurring</span>}

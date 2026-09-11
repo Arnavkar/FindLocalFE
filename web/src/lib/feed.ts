@@ -7,6 +7,7 @@ import {
   canonicalQuery,
   filtersToQuery,
   parseFilters,
+  parseYmdRange,
   type City,
   type EventFilters,
   type EventRow,
@@ -36,8 +37,10 @@ export interface FeedState {
   filters: EventFilters;
   /** The `when` value as it appears in the URL ('anytime' when unset). */
   when: string;
-  /** 'YYYY-MM-DD' when `when` is a literal date. */
+  /** 'YYYY-MM-DD' when `when` is a literal date or a range (its first day). */
   whenDate: string | null;
+  /** Last day of a `when` range literal ('YYYY-MM-DD..YYYY-MM-DD'); null for a single day. */
+  whenUntil: string | null;
   page: number;
   pages: number;
   total: number;
@@ -65,7 +68,9 @@ export async function loadFeed(db: D1Database, city: City, url: URL, now: Date =
   const filters = parseFilters(params, city, now);
   const canonical = canonicalQuery(params);
   const when = new URLSearchParams(canonical).get('when') ?? 'anytime';
-  const whenDate = /^\d{4}-\d{2}-\d{2}$/.test(when) ? when : null;
+  const range = parseYmdRange(when);
+  const whenDate = range ? range.from : /^\d{4}-\d{2}-\d{2}$/.test(when) ? when : null;
+  const whenUntil = range ? range.to : null;
   const page = (filters.offset ?? 0) / PAGE_SIZE + 1;
   const [events, total, cats, regions] = await Promise.all([
     listUpcomingEvents(db, filters),
@@ -87,6 +92,7 @@ export async function loadFeed(db: D1Database, city: City, url: URL, now: Date =
     filters,
     when,
     whenDate,
+    whenUntil,
     page,
     pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
     total,
@@ -156,6 +162,7 @@ export function filterSummary(s: FeedState): string {
   const bits: string[] = [];
   const whenLabel = WHEN_CHIPS.find((w) => w.value === s.when)?.label;
   if (whenLabel && s.when !== 'anytime') bits.push(whenLabel.toLowerCase());
+  else if (s.whenDate && s.whenUntil) bits.push(`${s.whenDate} to ${s.whenUntil}`);
   else if (s.whenDate) bits.push(`on ${s.whenDate}`);
   const cats = s.categoryOptions.filter((c) => c.active).map((c) => c.label);
   if (cats.length) bits.push(cats.join(', '));

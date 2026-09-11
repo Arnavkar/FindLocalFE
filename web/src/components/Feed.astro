@@ -3,7 +3,9 @@
 // date-grouped list and pagination. On phones the filter rows collapse into a
 // floating button + full-screen sheet (FilterFab / FilterSheet).
 import { filterSummary, type FeedState } from '../lib/feed.js';
+import type { HomeRails as Rails } from '../lib/home.js';
 import EventList from './EventList.astro';
+import HomeRails from './HomeRails.astro';
 import EventMap from './EventMap.astro';
 import FilterBar from './FilterBar.astro';
 import FilterFab from './FilterFab.astro';
@@ -13,8 +15,10 @@ interface Props {
   state: FeedState;
   heading: string;
   intro?: string;
+  /** Curated rows above the list (unfiltered page 1 only). */
+  rails?: Rails | null;
 }
-const { state, heading, intro } = Astro.props;
+const { state, heading, intro, rails = null } = Astro.props;
 const summary = filterSummary(state);
 ---
 <h1>{heading}</h1>
@@ -25,6 +29,8 @@ const summary = filterSummary(state);
   <span class="sep" aria-hidden="true">·</span><a class="all-venues" href="/venues">All venues in {state.city.name}</a>
 </p>
 {state.view === 'map' && <EventMap events={state.events} city={state.city} />}
+{rails && <HomeRails rails={rails} state={state} />}
+{rails && state.events.length > 0 && <h2 id="all-events" class="all-head">All upcoming, day by day</h2>}
 {state.events.length === 0 ? (
   <p class="empty">Nothing listed for these filters yet — listings update daily. <a href={state.basePath}>Clear filters</a> or pick another city below.</p>
 ) : (
@@ -38,4 +44,5 @@ const summary = filterSummary(state);
   .result-line { margin: 0.5rem 0 0; font-size: 0.9rem; }
   .result-line .sep { margin: 0 0.4rem; }
   .all-venues { font-weight: 600; }
+  .all-head { margin: 0 0 0.25rem; font-size: 1.2rem; }
 </style>

@@ -53,6 +53,7 @@ const venueFields: [string, string][] = [
         <tbody>
           <tr><td><code>GET /api/events</code></td><td>Upcoming events in one city, filtered and paginated. <code>{'{ data: Event[], meta: { city, count, total, page, page_size } }'}</code></td></tr>
           <tr><td><code>GET /api/events/&lt;uuid&gt;</code></td><td>One event, including past and delisted ones. <code>{'{ data: Event }'}</code> or <code>404 {'{ error: "not found" }'}</code></td></tr>
+          <tr><td><code>GET /api/home</code></td><td>The site's home rails for one city (<code>city=</code>): Highlights, Today/Tonight, This weekend, Free, then one per category — each ranked by listing completeness and variety rather than start time. <code>{'{ data: { highlights, today, weekend, free, categories[] }, meta: { city, tz } }'}</code>; every rail is <code>{'{ key, title, total, query, events: Event[] }'}</code> and <code>query</code> is the <code>/api/events</code> query for its "see all" view.</td></tr>
           <tr><td><code>GET /api/venues</code></td><td>Active venues in one city with upcoming counts. <code>{'{ data: Venue[], meta: { city, count } }'}</code></td></tr>
           <tr><td><code>GET /event/&lt;uuid&gt;/calendar.ics</code></td><td>iCalendar file for one event (<code>text/calendar</code>)</td></tr>
         </tbody>
@@ -79,7 +80,7 @@ curl '${BASE}/api/venues?city=chicago'`}</code></pre></div>
         <thead><tr><th>Parameter</th><th>Values</th><th>Notes</th></tr></thead>
         <tbody>
           <tr><td><code>city</code></td><td>Name or slug: <code>Boston</code>, <code>new-york</code>, <code>portland-me</code></td><td>Defaults to Boston. <a href="#cities">All {CITIES.length} metros</a>.</td></tr>
-          <tr><td><code>when</code></td><td><code>anytime</code> · <code>today</code> · <code>tomorrow</code> · <code>weekend</code> · <code>week</code> · <code>YYYY-MM-DD</code></td><td>Resolved in the city's time zone. <code>weekend</code> = upcoming Fri–Sun, <code>week</code> = next 7 days. Default <code>anytime</code>.</td></tr>
+          <tr><td><code>when</code></td><td><code>anytime</code> · <code>today</code> · <code>tomorrow</code> · <code>weekend</code> · <code>week</code> · <code>YYYY-MM-DD</code></td><td>Resolved in the city's time zone. <code>weekend</code> = upcoming Fri–Sun, <code>week</code> = next 7 days. Default <code>anytime</code>. Today's timed events that started more than 30 minutes ago are omitted (untimed ones stay).</td></tr>
           <tr><td><code>cat</code></td><td>Comma list of slugs, or repeated (<code>cat=music&amp;cat=comedy</code>)</td><td><a href="#categories">Category slugs</a></td></tr>
           <tr><td><code>free</code></td><td><code>1</code></td><td>Only free events ($0 or labelled free)</td></tr>
           <tr><td><code>paid</code></td><td><code>1</code></td><td>Only ticketed events. <code>free=1&amp;paid=1</code> returns both.</td></tr>

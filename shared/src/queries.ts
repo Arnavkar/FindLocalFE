@@ -4,9 +4,10 @@
 // All SQL lives here; JSON columns are parsed in the mappers.
 import type { D1Database } from '@cloudflare/workers-types';
 import { getCity } from './cities.js';
-import { addDays, todayIn } from './dates.js';
+import { addDays, startCutoffIn, todayIn } from './dates.js';
 import type { EventFilters } from './filters.js';
 import type { EventRow, Performer, VenueRow } from './types.js';
+import { venueTypeKey, venueTypeKeySql } from './venueTypes.js';
 
 const MAX_BINDS = 90; // D1 allows 100 bound params per statement; leave headroom.
 const MAX_LIMIT = 500;
@@ -83,8 +84,12 @@ function todayDefault(): string {
   return todayIn(DEFAULT_TZ);
 }
 
+function cityTz(city: string): string {
+  return getCity(city)?.tz ?? DEFAULT_TZ;
+}
+
 function cityToday(city: string): string {
-  return todayIn(getCity(city)?.tz ?? DEFAULT_TZ);
+  return todayIn(cityTz(city));
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -173,8 +178,17 @@ function buildWhere(f: EventFilters, skip?: keyof EventFilters): Where {
   const where: string[] = [`e.city = ?`];
   const binds: unknown[] = [f.city];
   if (!f.includeDeleted) where.push(`e.is_deleted = 0`);
+  const today = cityToday(f.city);
+  const from = f.from ?? today;
   where.push(`e.event_date >= ?`);
-  binds.push(f.from ?? cityToday(f.city));
+  binds.push(from);
+  // Today's timed events that already started (past a short grace period) are
+  // over as far as a visitor is concerned; untimed (all-day) rows stay.
+  const cutoff = f.startCutoff === undefined ? startCutoffIn(cityTz(f.city)) : f.startCutoff;
+  if (from <= today && cutoff) {
+    where.push(`(e.event_date > ? OR e.start_time IS NULL OR e.start_time = '' OR e.start_time >= ?)`);
+    binds.push(today, cutoff);
+  }
   if (f.to) {
     where.push(`e.event_date <= ?`);
     binds.push(f.to);
@@ -406,7 +420,7 @@ export interface VenueListOptions {
   sort?: VenueSort;
   /** Case-insensitive "name contains". */
   q?: string;
-  /** Exact venue type, case-insensitive (see listVenueTypes). */
+  /** Venue type, matched by venueTypeKey (see listVenueTypes). */
   type?: string;
 }
 
@@ -431,9 +445,9 @@ export async function listVenues(db: D1Database, o: VenueListOptions): Promise<V
     where.push(`v.name LIKE ? ESCAPE '\\'`);
     binds.push(`%${escapeLike(q)}%`);
   }
-  const type = o.type?.trim();
+  const type = venueTypeKey(o.type);
   if (type) {
-    where.push(`lower(v.type) = lower(?)`);
+    where.push(`${venueTypeKeySql('v.type')} = ?`);
     binds.push(type);
   }
   const order = o.sort === 'upcoming' ? `ORDER BY upcoming DESC, v.name` : `ORDER BY v.name`;
@@ -444,13 +458,14 @@ export async function listVenues(db: D1Database, o: VenueListOptions): Promise<V
   return results.map(mapVenue);
 }
 
-/** Distinct venue types in a city (active venues), most common first. */
+/** Distinct normalised venue type keys in a city (active venues), most common first. */
 export async function listVenueTypes(db: D1Database, city: string): Promise<{ type: string; count: number }[]> {
+  const key = venueTypeKeySql('type');
   const { results } = await db
     .prepare(
-      `SELECT type, COUNT(*) AS count FROM venues
-       WHERE is_active = 1 AND city = ? AND type IS NOT NULL AND type <> ''
-       GROUP BY type ORDER BY count DESC, type`,
+      `SELECT ${key} AS type, COUNT(*) AS count FROM venues
+       WHERE is_active = 1 AND city = ? AND type IS NOT NULL AND trim(type) <> ''
+       GROUP BY ${key} ORDER BY count DESC, type`,
     )
     .bind(city)
     .all<{ type: string; count: number }>();

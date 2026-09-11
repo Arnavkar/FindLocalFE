@@ -1,0 +1,44 @@
+---
+// Brand "no image" tile: teal-tinted block, a simple line glyph for the
+// category (paths in lib/categoryArt.ts, shared with the app) and the logo's
+// orange accent dot. Fills its parent (position: absolute; inset: 0), so it
+// drops into any .thumb / .hero box that used to hold the text placeholder.
+import { ART_STROKE, ART_VIEWBOX, CATEGORY_ART, artKeyFor } from '../lib/categoryArt.js';
+import { categoryLabel } from '../lib/format.js';
+interface Props {
+  category: string | null | undefined;
+  /** Show the category name under the glyph (heroes only). */
+  label?: boolean;
+  class?: string;
+}
+const { category, label = false, class: cls } = Astro.props;
+const shapes = CATEGORY_ART[artKeyFor(category)] ?? [];
+const caption = label ? categoryLabel(category) : '';
+---
+<div class:list={['category-art', { labelled: !!caption }, cls]} aria-hidden="true">
+  <svg viewBox={ART_VIEWBOX} class="glyph">
+    {shapes.map((s) =>
+      s.fill ? <path d={s.d} fill="currentColor" /> : <path d={s.d} fill="none" stroke="currentColor" stroke-width={ART_STROKE} stroke-linecap="round" stroke-linejoin="round" />,
+    )}
+    <path d="M50 4a5 5 0 1 0 10 0a5 5 0 1 0-10 0" class="accent" />
+  </svg>
+  {caption && <span class="caption">{caption}</span>}
+</div>
+
+<style>
+  .category-art {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: rgb(var(--teal-100));
+    color: rgb(var(--teal));
+  }
+  .glyph { width: 52%; height: 52%; max-width: 160px; max-height: 160px; }
+  .labelled .glyph { width: 40%; height: 40%; }
+  .accent { fill: rgb(var(--orange)); }
+  .caption { font-family: var(--font-body); font-weight: 500; font-size: 0.85rem; letter-spacing: 0.02em; color: rgb(var(--teal-600)); }
+</style>

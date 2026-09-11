@@ -1,6 +1,7 @@
 // URL <-> EventFilters: the single filter contract shared by the site, its
 // JSON API and the MCP worker. Known query keys:
-//   when   anytime|today|tomorrow|weekend|week|YYYY-MM-DD (default anytime)
+//   when   anytime|today|tomorrow|weekend|week|YYYY-MM-DD|YYYY-MM-DD..YYYY-MM-DD (default anytime)
+//   until  YYYY-MM-DD form helper: with when=YYYY-MM-DD it folds into the range literal
 //   cat    comma list of category slugs (or repeated: cat=a&cat=b)
 //   free=1 paid=1
 //   max    number (USD)
@@ -11,7 +12,7 @@
 //   page   1-based, 100 events per page
 import { CATEGORY_SLUGS } from './categories.js';
 import type { City } from './cities.js';
-import { dateRangeFor, isYmd, TIME_OF_DAY, type TimeOfDay, type When } from './dates.js';
+import { dateRangeFor, isYmd, parseYmdRange, TIME_OF_DAY, ymdRangeLiteral, type TimeOfDay, type When } from './dates.js';
 
 export const PAGE_SIZE = 100;
 
@@ -23,6 +24,11 @@ export interface EventFilters {
   from?: string;
   /** Inclusive 'YYYY-MM-DD' upper bound; null/undefined = open-ended. */
   to?: string | null;
+  /**
+   * 'HH:MM' on the city's wall clock: today's timed events starting before it are
+   * hidden (already under way). Undefined = now minus START_GRACE_MINUTES; null = off.
+   */
+  startCutoff?: string | null;
   categories?: string[];
   free?: boolean;
   paid?: boolean;
@@ -44,11 +50,19 @@ export type FilterKey = (typeof FILTER_KEYS)[number];
 const WHEN_BUCKETS = new Set(['anytime', 'today', 'tomorrow', 'weekend', 'week']);
 const MAX_TEXT = 100;
 
-function normWhen(raw: string | null): When | null {
+function normWhen(raw: string | null, until: string | null = null): When | null {
   const w = (raw ?? '').trim().toLowerCase();
-  if (!w || w === 'anytime') return null;
-  if (WHEN_BUCKETS.has(w) || isYmd(w)) return w;
-  return null;
+  const u = (until ?? '').trim();
+  if (!w || w === 'anytime') return isYmd(u) ? u : null;
+  if (WHEN_BUCKETS.has(w)) return w;
+  if (isYmd(w)) return isYmd(u) ? ymdRangeLiteral(w, u) : w;
+  const range = parseYmdRange(w);
+  return range ? ymdRangeLiteral(range.from, range.to) : null;
+}
+
+/** `when` (+ the optional `until` form field) normalised to one literal. */
+function whenParam(params: URLSearchParams): When | null {
+  return normWhen(firstNonEmpty(params, 'when'), firstNonEmpty(params, 'until'));
 }
 
 /** First non-empty value for a key (a form may submit `when=&when=weekend`). */
@@ -93,7 +107,7 @@ function normText(raw: string | null): string | null {
 /** Parse a request's search params into EventFilters for `city` (dates resolved in city.tz). */
 export function parseFilters(params: URLSearchParams, city: City, now: Date = new Date()): EventFilters {
   const f: EventFilters = { city: city.name };
-  const range = dateRangeFor(normWhen(firstNonEmpty(params, 'when')) ?? 'anytime', city.tz, now);
+  const range = dateRangeFor(whenParam(params) ?? 'anytime', city.tz, now);
   f.from = range.from;
   f.to = range.to;
   const cats = normList(listParam(params, 'cat'), CATEGORY_SLUGS);
@@ -123,7 +137,7 @@ export function parseFilters(params: URLSearchParams, city: City, now: Date = ne
  */
 export function canonicalQuery(params: URLSearchParams): string {
   const out = new URLSearchParams();
-  const when = normWhen(firstNonEmpty(params, 'when'));
+  const when = whenParam(params);
   if (when) out.set('when', when);
   const cats = normList(listParam(params, 'cat'), CATEGORY_SLUGS);
   if (cats.length) out.set('cat', cats.join(','));
@@ -155,7 +169,7 @@ export interface QueryableFilters extends Partial<EventFilters> {
 export function filtersToQuery(f: QueryableFilters): string {
   const p = new URLSearchParams();
   if (f.when) p.set('when', f.when);
-  else if (f.from && f.to === f.from) p.set('when', f.from);
+  else if (f.from && f.to) p.set('when', ymdRangeLiteral(f.from, f.to));
   if (f.categories?.length) p.set('cat', f.categories.join(','));
   if (f.free) p.set('free', '1');
   if (f.paid) p.set('paid', '1');

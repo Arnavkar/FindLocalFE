@@ -49,8 +49,11 @@ const mapHref = `${listHref}${listHref.includes('?') ? '&' : '?'}view=map`;
       <form class="date" method="get" action={state.basePath}>
         {[...hidden.entries()].filter(([k]) => k !== 'when' && k !== 'page').map(([k, v]) => <input type="hidden" name={k} value={v} />)}
         {state.view === 'map' && <input type="hidden" name="view" value="map" />}
-        <label class="visually-hidden" for="when-date">Pick a date</label>
+        <label class="visually-hidden" for="when-date">From date</label>
         <input id="when-date" type="date" name="when" value={state.whenDate ?? ''} class:list={['chip', { active: !!state.whenDate }]} />
+        <span class="to" aria-hidden="true">to</span>
+        <label class="visually-hidden" for="until-date">To date (optional)</label>
+        <input id="until-date" type="date" name="until" value={state.whenUntil ?? ''} class:list={['chip', { active: !!state.whenUntil }]} />
         <button type="submit" class="chip">Go</button>
       </form>
     </div>
@@ -122,7 +125,8 @@ const mapHref = `${listHref}${listHref.includes('?') ? '&' : '?'}view=map`;
   .q input::-webkit-search-cancel-button { -webkit-appearance: none; }
   @media (min-width: 760px) { .q { display: none; } }
   .view-toggle { display: flex; gap: 0.4rem; margin-left: auto; }
-  .date { display: inline-flex; gap: 0.3rem; align-items: center; }
+  .date { display: inline-flex; gap: 0.3rem; align-items: center; flex-wrap: wrap; }
+  .date .to { font-size: 0.8rem; color: rgb(var(--text-3)); }
   .date input[type='date'] { padding: 0.25rem 0.6rem; background: rgb(var(--surface-accent)); border: 1px solid rgb(var(--border)); color: rgb(var(--text-2)); font-size: 0.85rem; }
   .date input.active { background: rgb(var(--teal)); color: rgb(var(--text-inverse)); border-color: rgb(var(--teal)); }
   .date button { cursor: pointer; }

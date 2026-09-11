@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { venueTypeKey, venueTypeLabel } from '../src/venueTypes.js';
 import {
   CITIES, canonicalQuery, canonicalUrl, categoryBySlug, cityBySlug, citySlug, dateRangeFor,
   filtersToQuery, formatEventDate, formatTime, getCity, GONE_PATHS, isGonePath, isUuid, nearestCity,
-  parseFilters, redirectTargetFor, REGION_GROUPS, regionGroupBySlug, regionGroupCities, regionGroupCityNames, slugForToken, slugsForTokens, timeOfDayBucket, todayIn, addDays,
+  parseFilters, redirectTargetFor, REGION_GROUPS, regionGroupBySlug, regionGroupCities, regionGroupCityNames, slugForToken, slugsForTokens, timeOfDayBucket, todayIn, addDays, clockIn, daysBetween, startCutoffIn,
 } from '../src/index.js';
 
 const NY = getCity('New York')!;
@@ -88,6 +89,8 @@ describe('dates', () => {
     expect(dateRangeFor('weekend', 'UTC', new Date('2026-09-06T12:00:00Z'))).toEqual({ from: '2026-09-06', to: '2026-09-06' });
     expect(dateRangeFor('week', NY.tz, NOW)).toEqual({ from: '2026-09-04', to: '2026-09-10' });
     expect(dateRangeFor('2026-10-31', NY.tz, NOW)).toEqual({ from: '2026-10-31', to: '2026-10-31' });
+    expect(dateRangeFor('2026-10-01..2026-10-14', NY.tz, NOW)).toEqual({ from: '2026-10-01', to: '2026-10-14' });
+    expect(dateRangeFor('2026-10-14..2026-10-01', NY.tz, NOW)).toEqual({ from: '2026-10-01', to: '2026-10-14' });
     expect(dateRangeFor('anytime', NY.tz, NOW)).toEqual({ from: '2026-09-04', to: null });
     expect(dateRangeFor('garbage', NY.tz, NOW)).toEqual({ from: '2026-09-04', to: null });
   });
@@ -115,6 +118,27 @@ describe('dates', () => {
   });
 });
 
+describe('clock helpers', () => {
+  it('clockIn formats the wall clock in the zone', () => {
+    expect(clockIn('America/New_York', NOW)).toBe('23:00');
+    expect(clockIn('America/Los_Angeles', NOW)).toBe('20:00');
+    expect(clockIn('UTC', new Date('2026-09-05T00:05:00Z'))).toBe('00:05');
+  });
+  it('startCutoffIn is now minus the grace period, clamped to midnight', () => {
+    expect(startCutoffIn('America/New_York', NOW)).toBe('22:30');
+    expect(startCutoffIn('America/New_York', NOW, 0)).toBe('23:00');
+    expect(startCutoffIn('UTC', new Date('2026-09-05T00:10:00Z'))).toBe('00:00');
+    expect(startCutoffIn('UTC', new Date('2026-09-05T00:30:00Z'))).toBe('00:00');
+    expect(startCutoffIn('UTC', new Date('2026-09-05T00:31:00Z'))).toBe('00:01');
+  });
+  it('daysBetween counts calendar days', () => {
+    expect(daysBetween('2026-09-05', '2026-09-05')).toBe(0);
+    expect(daysBetween('2026-09-05', '2026-09-07')).toBe(2);
+    expect(daysBetween('2026-09-07', '2026-09-05')).toBe(-2);
+    expect(daysBetween('2026-02-28', '2026-03-01')).toBe(1);
+  });
+});
+
 describe('filters', () => {
   it('parseFilters maps every key', () => {
     const p = new URLSearchParams('when=weekend&cat=music,comedy,bogus&free=1&paid=1&max=25&tod=evening,morning&region=Brooklyn&q=%20jazz%20&performer=%20Ann%20%20Patchett%20&page=3');
@@ -132,6 +156,11 @@ describe('filters', () => {
     expect(canonicalQuery(new URLSearchParams('q=jazz&when=today&cat=comedy,music,music&free=1&tod=evening'))).toBe('cat=music%2Ccomedy&free=1&q=jazz&tod=evening&when=today');
     expect(canonicalQuery(new URLSearchParams('page=2&max=20.5&region=Back+Bay'))).toBe('max=20.5&page=2&region=Back+Bay');
     expect(canonicalQuery(new URLSearchParams('when=2026-10-31'))).toBe('when=2026-10-31');
+    expect(canonicalQuery(new URLSearchParams('when=2026-10-31&until=2026-11-02'))).toBe('when=2026-10-31..2026-11-02');
+    expect(canonicalQuery(new URLSearchParams('when=2026-11-02..2026-10-31'))).toBe('when=2026-10-31..2026-11-02');
+    expect(canonicalQuery(new URLSearchParams('when=2026-10-31&until=2026-10-31'))).toBe('when=2026-10-31');
+    expect(canonicalQuery(new URLSearchParams('when=weekend&until=2026-10-31'))).toBe('when=weekend');
+    expect(canonicalQuery(new URLSearchParams('until=2026-10-31'))).toBe('when=2026-10-31');
     expect(canonicalQuery(new URLSearchParams('performer=Ann+Patchett&when=anytime'))).toBe('performer=Ann+Patchett');
   });
   it('filtersToQuery round-trips through parseFilters', () => {
@@ -140,6 +169,8 @@ describe('filters', () => {
     expect(filtersToQuery({})).toBe('');
     expect(filtersToQuery({ performer: 'Ann Patchett' })).toBe('performer=Ann+Patchett');
     expect(filtersToQuery({ from: '2026-10-01', to: '2026-10-01', offset: 300 })).toBe('page=4&when=2026-10-01');
+    expect(filtersToQuery({ from: '2026-10-01', to: '2026-10-09' })).toBe('when=2026-10-01..2026-10-09');
+    expect(filtersToQuery({ from: '2026-10-01', to: null })).toBe('');
   });
 });
 
@@ -178,5 +209,15 @@ describe('seo', () => {
     for (const p of ['/', '/event/x', '/venues', '/users', '/authors', '/city/boston']) {
       expect(isGonePath(p), p).toBe(false);
     }
+  });
+});
+
+describe('venueTypes', () => {
+  it('folds spellings into one key and labels it', () => {
+    expect(venueTypeKey('music_venue')).toBe('music venue');
+    expect(venueTypeKey(' Music-Venue ')).toBe('music venue');
+    expect(venueTypeKey('Theater')).toBe('theater');
+    expect(venueTypeKey('')).toBeNull();
+    expect(venueTypeLabel('music venue')).toBe('Music Venue');
   });
 });

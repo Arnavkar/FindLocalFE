@@ -4,6 +4,7 @@
 import Layout from '../layouts/Layout.astro';
 import Icon from '../components/Icon.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
+import CategoryArt from '../components/CategoryArt.astro';
 ---
 <Layout title="Saved events" description="Events you've saved on this device." noindex>
   <Breadcrumbs crumbs={[{ name: 'Home', path: '/' }, { name: 'Saved events', path: '/saved' }]} />
@@ -12,7 +13,7 @@ import Breadcrumbs from '../components/Breadcrumbs.astro';
   <div id="saved" aria-live="polite"><p class="muted">Loading your saved events…</p></div>
   <template id="saved-card">
     <a class="card" href="">
-      <div class="thumb"><div class="placeholder" aria-hidden="true">Event</div></div>
+      <div class="thumb"><CategoryArt category={null} /></div>
       <div class="body"><div class="when"></div><h3 class="title"></h3><div class="where"></div></div>
     </a>
   </template>

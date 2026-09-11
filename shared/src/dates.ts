@@ -8,6 +8,26 @@ export function isYmd(s: unknown): s is string {
   return typeof s === 'string' && YMD.test(s);
 }
 
+const YMD_RANGE = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/;
+
+/** 'YYYY-MM-DD..YYYY-MM-DD' — an inclusive calendar-day range literal for `when`. */
+export function isYmdRange(s: unknown): s is string {
+  return typeof s === 'string' && YMD_RANGE.test(s);
+}
+
+/** Split a range literal into ordered bounds (swapped when given backwards); null unless both are dates. */
+export function parseYmdRange(s: unknown): { from: string; to: string } | null {
+  const m = typeof s === 'string' ? YMD_RANGE.exec(s) : null;
+  if (!m || !m[1] || !m[2]) return null;
+  return m[1] <= m[2] ? { from: m[1], to: m[2] } : { from: m[2], to: m[1] };
+}
+
+/** Canonical `when` literal for a day or an inclusive span: 'YYYY-MM-DD' or 'from..to'. */
+export function ymdRangeLiteral(from: string, to: string | null | undefined): string {
+  if (!to || to === from) return from;
+  return from <= to ? `${from}..${to}` : `${to}..${from}`;
+}
+
 /** 'YYYY-MM-DD' for `now` as seen on the wall clock in `tz`. */
 export function todayIn(tz: string, now: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -30,10 +50,35 @@ function fromUtcDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** 'HH:MM' wall-clock time for `now` in `tz` (24h, zero-padded). */
+export function clockIn(tz: string, now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '00';
+  return `${get('hour').padStart(2, '0')}:${get('minute')}`;
+}
+
+/** Grace period: today's events that started up to this many minutes ago still show. */
+export const START_GRACE_MINUTES = 30;
+
+/**
+ * 'HH:MM' in `tz` before which today's events count as already started
+ * (now minus START_GRACE_MINUTES). Just after midnight it clamps to '00:00'
+ * so nothing from today is hidden.
+ */
+export function startCutoffIn(tz: string, now: Date = new Date(), graceMinutes = START_GRACE_MINUTES): string {
+  const earlier = new Date(now.getTime() - graceMinutes * 60_000);
+  return todayIn(tz, earlier) === todayIn(tz, now) ? clockIn(tz, earlier) : '00:00';
+}
+
 export function addDays(ymd: string, n: number): string {
   const d = toUtcDate(ymd);
   d.setUTCDate(d.getUTCDate() + n);
   return fromUtcDate(d);
+}
+
+/** Whole days from `from` to `to` (negative when `to` is earlier). */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((toUtcDate(to).getTime() - toUtcDate(from).getTime()) / 86_400_000);
 }
 
 /** 0 = Sunday ... 6 = Saturday, for a plain calendar day. */
@@ -46,7 +91,8 @@ export type When = 'anytime' | 'today' | 'tomorrow' | 'weekend' | 'week' | strin
 /**
  * Inclusive calendar-day range for a `when` bucket, resolved in `tz`.
  * weekend = the upcoming Fri..Sun (if today is Sat/Sun: today..Sun);
- * week = today..+6; a literal 'YYYY-MM-DD' = that single day; anything else = anytime.
+ * week = today..+6; a literal 'YYYY-MM-DD' = that single day;
+ * 'YYYY-MM-DD..YYYY-MM-DD' = that inclusive span; anything else = anytime.
  */
 export function dateRangeFor(when: When, tz: string, now: Date = new Date()): { from: string; to: string | null } {
   const today = todayIn(tz, now);
@@ -66,9 +112,12 @@ export function dateRangeFor(when: When, tz: string, now: Date = new Date()): { 
     }
     case 'week':
       return { from: today, to: addDays(today, 6) };
-    default:
+    default: {
       if (isYmd(when)) return { from: when, to: when };
+      const range = parseYmdRange(when);
+      if (range) return range;
       return { from: today, to: null };
+    }
   }
 }
 

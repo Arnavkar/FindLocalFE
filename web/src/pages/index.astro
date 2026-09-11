@@ -7,6 +7,7 @@ import Feed from '../components/Feed.astro';
 import JsonLd from '../components/JsonLd.astro';
 import { getDb } from '../lib/db.js';
 import { loadFeed } from '../lib/feed.js';
+import { loadHomeRails } from '../lib/home.js';
 import { organizationJsonLd, webApplicationJsonLd, webSiteJsonLd } from '../lib/jsonld.js';
 import { CITIES, SITE } from '@findlocal/shared';
 
@@ -15,6 +16,8 @@ const state = await loadFeed(getDb(), city, Astro.url);
 const filtered = state.filterCanonical !== '';
 const paged = !filtered && state.page > 1;
 const beyond = state.page > state.pages;
+// Curated rows only on the plain first page of the list (the indexable view).
+const rails = !filtered && !paged && state.view === 'list' ? await loadHomeRails(getDb(), city) : null;
 const jsonAlternate = `${SITE}/api/events?city=${encodeURIComponent(city.name)}`;
 ---
 <Layout
@@ -29,6 +32,7 @@ const jsonAlternate = `${SITE}/api/events?city=${encodeURIComponent(city.name)}`
   {!filtered && !paged && <JsonLd data={[organizationJsonLd(), webSiteJsonLd(city), webApplicationJsonLd()]} slot="head" />}
   <Feed
     state={state}
+    rails={rails}
     heading={`What's on in ${city.name}`}
     intro={filtered ? undefined : `Concerts, comedy, theater, and community happenings across ${city.name}, ${city.state} — collected straight from local venue calendars and updated daily.`}
   />

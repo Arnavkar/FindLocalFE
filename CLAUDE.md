@@ -25,6 +25,7 @@ shared/               @findlocal/shared — raw TS, no build step (main = src/in
     categories.ts     CATEGORIES, categoryBySlug, slugForToken (parity with FindLocalData/src/categories.py)
     dates.ts          todayIn(tz), addDays, dateRangeFor(when, tz), formatEventDate, formatTime, timeOfDayBucket
     filters.ts        EventFilters + parseFilters(URLSearchParams, city) / canonicalQuery / filtersToQuery
+    highlights.ts     pickHighlights / highlightScore — pure editorial ranking for home rails (completeness + variety)
     regions.ts        REGION_GROUPS (e.g. new-england = 18 metro slugs) for multi-city widgets
     queries.ts        THE ONLY CODE THAT TOUCHES D1 — SELECT helpers, all SQL lives here
     seo.ts            SITE, canonicalUrl, isUuid, redirectTargetFor, GONE_PATHS, IMPACT_SITE_VERIFICATION
@@ -35,7 +36,7 @@ web/                  @findlocal/web — Astro 7 SSR Worker (findlocal.community
   astro.config.mjs    output:'server', @astrojs/cloudflare (platformProxy reads wrangler.toml)
   wrangler.toml       findlocal-web: D1 `DB` findlocal, `SESSION` KV placeholder, custom_domain route
   src/middleware.ts   301/410 tables, fl_city cookie -> locals.city, Cache API edge cache, X-Robots-Tag
-  src/lib/            db.ts (ONLY importer of cloudflare:workers), feed.ts, cacheKey.ts, cacheHeaders.ts,
+  src/lib/            db.ts (ONLY importer of cloudflare:workers), feed.ts, home.ts (loadHomeRails: the rails for / and /api/home), cacheKey.ts, cacheHeaders.ts,
                       jsonld.ts, ics.ts, format.ts, icons.ts — pure helpers unit-tested in web/test/
   src/pages/          one file per route in the route table below; about/privacy/terms/blog/platform/developers are prerendered
                       embed/events.astro = the widget iframe page (EmbedLayout, no site chrome); lib/embed.ts = its query contract
@@ -78,6 +79,14 @@ npm run deploy:web               # astro build + wrangler deploy (needs a real S
   and never construct a local-time `Date` from a calendar day. "Today" is
   always resolved in the **city's time zone** (`City.tz`); helpers that aren't
   city-scoped (getEvent, sitemaps) use `DEFAULT_TZ = America/New_York`.
+- **Already-started events are hidden.** `buildWhere` drops today's timed rows whose
+  `start_time` is before now − 30 min on the city clock (`startCutoffIn`; untimed rows stay).
+  `EventFilters.startCutoff` overrides it ('HH:MM') or disables it (`null`) — tests must pass
+  `null` (or a fixed time) or they depend on the wall clock. Edge caches add up to their TTL.
+- **Home rails** (`/`, `/city/<slug>` page 1 unfiltered, and `GET /api/home?city=`): `loadHomeRails`
+  pulls a 400-event pool plus today/weekend/free pools and ranks each with `pickHighlights`
+  (image, description, performers, price; category/venue repeats penalised; a series once;
+  later rails skip Highlights' picks). The day-grouped list still follows, unchanged, for SEO.
 - **Recurrence** = same `lower(trim(title))` at the same venue on >1 upcoming
   date. `listUpcomingEvents` computes `series_count`/`series_image` over the
   *unfiltered* upcoming set for the city, so a filtered view still shows the

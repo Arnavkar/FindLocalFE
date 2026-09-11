@@ -1,10 +1,9 @@
-// Cloudflare Image Transformations helper (pure — no runtime dependency).
-// The findlocal.community zone has Transformations turned OFF as of writing;
-// flip IMAGE_CDN_ENABLED once it's enabled there so imageUrl() starts resizing.
-export const IMAGE_CDN_ENABLED = false;
-
-export const IMAGE_CDN_BASE = 'https://findlocal.community/cdn-cgi/image';
-
+// Image URL helper. Cloudflare Image Transformations were evaluated and
+// rejected for this setup (2026-09-10): they bill per unique image+size per
+// month, which at hundreds of thousands of event images is far more than the
+// site earns from them. imageUrl() therefore always returns the source URL
+// unchanged. The `opts` argument is kept so call sites still document the
+// rendered size and can be re-pointed at a CDN later without a rewrite.
 export interface ImageOpts {
   width: number;
   height?: number;
@@ -12,19 +11,8 @@ export interface ImageOpts {
   quality?: number;
 }
 
-/** Builds a `/cdn-cgi/image/...` URL for `src`, or passes it through unchanged
- * when disabled, not a fetchable http(s) URL, or already transformed. */
-export function buildImageUrl(src: string | null | undefined, o: ImageOpts, enabled: boolean): string | null {
-  if (!src) return null;
-  if (!/^https?:\/\//i.test(src) || src.includes('/cdn-cgi/image/')) return src;
-  if (!enabled) return src;
-  const opts = [`width=${o.width}`];
-  if (o.height != null) opts.push(`height=${o.height}`);
-  opts.push(`fit=${o.fit ?? 'cover'}`, 'format=auto', `quality=${o.quality ?? 80}`);
-  return `${IMAGE_CDN_BASE}/${opts.join(',')}/${encodeURI(src)}`;
-}
-
-/** buildImageUrl gated by IMAGE_CDN_ENABLED — the call sites use this. */
-export function imageUrl(src: string | null | undefined, o: ImageOpts): string | null {
-  return buildImageUrl(src, o, IMAGE_CDN_ENABLED);
+/** The source URL as-is (null/empty -> null). Never builds a /cdn-cgi/image URL. */
+export function imageUrl(src: string | null | undefined, _opts?: ImageOpts): string | null {
+  void _opts;
+  return src ? src : null;
 }

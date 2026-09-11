@@ -9,6 +9,7 @@ import JsonLd from '../../components/JsonLd.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import { getDb } from '../../lib/db.js';
 import { loadFeed } from '../../lib/feed.js';
+import { loadHomeRails } from '../../lib/home.js';
 import { breadcrumbJsonLd, itemListJsonLd } from '../../lib/jsonld.js';
 import { SITE, cityBySlug } from '@findlocal/shared';
 
@@ -22,6 +23,8 @@ const filtered = state.filterCanonical !== '';
 const paged = !filtered && state.page > 1;
 const thin = state.total < 3;
 const beyond = state.page > state.pages;
+// Curated rows only on the plain first page of the list (the indexable view).
+const rails = !filtered && !paged && state.view === 'list' ? await loadHomeRails(getDb(), city) : null;
 const cityLabel = `${city.name}, ${city.state}`;
 const crumbs = [
   { name: 'Home', path: '/' },
@@ -42,6 +45,7 @@ const jsonAlternate = `${SITE}/api/events?city=${encodeURIComponent(city.name)}$
   <Breadcrumbs crumbs={crumbs} />
   <Feed
     state={state}
+    rails={rails}
     heading={`Things to do in ${cityLabel}`}
     intro={filtered ? undefined : `${state.total.toLocaleString('en-US')} upcoming events in ${city.name} — concerts, comedy, theater, and community happenings, collected straight from local venue calendars and updated daily.`}
   />

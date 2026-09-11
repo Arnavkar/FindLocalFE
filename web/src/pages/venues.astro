@@ -5,7 +5,7 @@ import VenueMap from '../components/VenueMap.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
 import CityLinks from '../components/CityLinks.astro';
 import { getDb, listVenues, listVenueTypes } from '../lib/db.js';
-import { SITE, imageUrl, type VenueSort } from '@findlocal/shared';
+import { SITE, imageUrl, venueTypeLabel, type VenueSort } from '@findlocal/shared';
 import { cleanText, truncate } from '../lib/format.js';
 
 const city = Astro.locals.city;
@@ -54,7 +54,7 @@ const crumbs = [{ name: 'Home', path: '/' }, { name: `Events in ${city.name}`, p
   {types.length > 1 && (
     <p class="type-chips">
       <a class:list={['chip', { on: !type }]} href={href({ type: '' })} rel="nofollow">All types</a>
-      {types.slice(0, 14).map((t) => <a class:list={['chip', { on: t.type.toLowerCase() === type.toLowerCase() }]} href={href({ type: t.type })} rel="nofollow">{t.type} <span class="faint">{t.count}</span></a>)}
+      {types.slice(0, 14).map((t) => <a class:list={['chip', { on: t.type === type.toLowerCase() }]} href={href({ type: t.type })} rel="nofollow">{venueTypeLabel(t.type)} <span class="faint">{t.count}</span></a>)}
     </p>
   )}
   {venues.length === 0 && filtered ? (

@@ -9,13 +9,42 @@ import { D, EVENTS, eid, seed, TODAY, V } from './seed.js';
 
 const BOS = getCity('Boston')!;
 const db = env.DB;
-const bos = (extra: Partial<EventFilters> = {}): EventFilters => ({ city: 'Boston', from: TODAY, ...extra });
+// startCutoff: null keeps these assertions independent of the wall clock (the seed has timed events today).
+const bos = (extra: Partial<EventFilters> = {}): EventFilters => ({ city: 'Boston', from: TODAY, startCutoff: null, ...extra });
+// parseFilters through the seed's fixed clock (no timed-today rows hidden).
+const parsed = (q: string): EventFilters => ({ ...parseFilters(new URLSearchParams(q), BOS), startCutoff: null });
 const titles = (rows: { title: string }[]) => rows.map((r) => r.title);
 const byTitle = (rows: { title: string }[], t: string) => rows.find((r) => r.title === t);
 const upcomingBoston = EVENTS.filter((e) => e.city === 'Boston' && !e.deleted && e.date >= TODAY);
 
 beforeAll(async () => {
   await seed(db);
+});
+
+describe('startCutoff (already-started events today)', () => {
+  const at = (time: string) => `${TODAY}T${time}:00`;
+  it('hides timed events today that started before the cutoff, keeps later/untimed/future ones', async () => {
+    // The Headliners is today 20:00; Trivia Night etc. are on later days.
+    const before = titles(await listUpcomingEvents(db, bos({ startCutoff: '19:30', limit: 500 })));
+    expect(before).toContain('The Headliners');
+    const after = titles(await listUpcomingEvents(db, bos({ startCutoff: '20:01', limit: 500 })));
+    expect(after).not.toContain('The Headliners');
+    expect(after).toContain('Free Community Night'); // untimed, tomorrow
+    expect(after.length).toBe(before.length - 1);
+    expect(await countUpcomingEvents(db, bos({ startCutoff: '20:01' }))).toBe(before.length - 1);
+    expect(at('x')).toContain(TODAY);
+  });
+  it('is inclusive at the boundary and skipped when `from` is after today', async () => {
+    expect(titles(await listUpcomingEvents(db, bos({ startCutoff: '20:00' })))).toContain('The Headliners');
+    expect(titles(await listUpcomingEvents(db, bos({ from: D(1), startCutoff: '23:59', limit: 500 })))).toContain('Trivia Night');
+  });
+  it('defaults to now minus the grace period in the city zone', async () => {
+    const rows = await listUpcomingEvents(db, { city: 'Boston', limit: 500 });
+    const now = new Date();
+    const wallClock = new Intl.DateTimeFormat('en-US', { timeZone: BOS.tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(now.getTime() - 30 * 60_000));
+    const expectHidden = wallClock > '20:00' && wallClock < '23:59';
+    expect(titles(rows).includes('The Headliners')).toBe(!expectHidden);
+  });
 });
 
 describe('listUpcomingEvents', () => {
@@ -76,20 +105,20 @@ describe('listUpcomingEvents', () => {
   });
 
   it('date window via parseFilters when=today / tomorrow / explicit date', async () => {
-    const today = await listUpcomingEvents(db, parseFilters(new URLSearchParams('when=today'), BOS));
+    const today = await listUpcomingEvents(db, parsed('when=today'));
     expect(titles(today)).toEqual(['The Headliners']);
-    const tomorrow = await listUpcomingEvents(db, parseFilters(new URLSearchParams('when=tomorrow'), BOS));
+    const tomorrow = await listUpcomingEvents(db, parsed('when=tomorrow'));
     expect(tomorrow.every((r) => r.event_date === D(1))).toBe(true);
     expect(titles(tomorrow)).toContain('Trivia Night');
     const day4 = await listUpcomingEvents(db, parseFilters(new URLSearchParams(`when=${D(4)}`), BOS));
     expect(titles(day4)).toContain('Uncategorised Thing');
-    const week = await listUpcomingEvents(db, parseFilters(new URLSearchParams('when=week'), BOS));
+    const week = await listUpcomingEvents(db, parsed('when=week'));
     expect(week.every((r) => r.event_date <= D(6))).toBe(true);
-    expect(await countUpcomingEvents(db, parseFilters(new URLSearchParams('when=week'), BOS))).toBe(week.length);
+    expect(await countUpcomingEvents(db, parsed('when=week'))).toBe(week.length);
   });
 
   it('category filter (cat=) incl. unknown slugs dropped', async () => {
-    const f = parseFilters(new URLSearchParams('cat=comedy,bogus'), BOS);
+    const f = parsed('cat=comedy,bogus');
     expect(f.categories).toEqual(['comedy']);
     const rows = await listUpcomingEvents(db, f);
     expect(rows.length).toBeGreaterThan(0);
@@ -100,14 +129,14 @@ describe('listUpcomingEvents', () => {
   });
 
   it('free / paid / max price flags', async () => {
-    const free = await listUpcomingEvents(db, parseFilters(new URLSearchParams('free=1'), BOS));
+    const free = await listUpcomingEvents(db, parsed('free=1'));
     expect(titles(free)).toContain('Trivia Night'); // price 'Free', amount null
     expect(titles(free)).toContain('Free Community Night');
     expect(titles(free)).toContain('Weekend Fest'); // amount 0
     expect(titles(free)).not.toContain('Priced Text Only');
     expect(titles(free)).not.toContain('Uncategorised Thing'); // no price info
 
-    const paid = await listUpcomingEvents(db, parseFilters(new URLSearchParams('paid=1'), BOS));
+    const paid = await listUpcomingEvents(db, parsed('paid=1'));
     expect(titles(paid)).toContain('Priced Text Only');
     expect(titles(paid)).toContain('The Headliners');
     expect(titles(paid)).not.toContain('Trivia Night');
@@ -116,7 +145,7 @@ describe('listUpcomingEvents', () => {
     const both = await countUpcomingEvents(db, bos({ free: true, paid: true }));
     expect(both).toBe(free.length + paid.length);
 
-    const cheap = await listUpcomingEvents(db, parseFilters(new URLSearchParams('max=15'), BOS));
+    const cheap = await listUpcomingEvents(db, parsed('max=15'));
     expect(titles(cheap)).toContain('Morning Yoga');
     expect(titles(cheap)).toContain('Weekend Fest');
     expect(titles(cheap)).not.toContain('Afternoon Jazz');
@@ -124,13 +153,13 @@ describe('listUpcomingEvents', () => {
   });
 
   it('time of day buckets', async () => {
-    const morning = await listUpcomingEvents(db, parseFilters(new URLSearchParams('tod=morning'), BOS));
+    const morning = await listUpcomingEvents(db, parsed('tod=morning'));
     expect(titles(morning)).toContain('Morning Yoga');
     expect(titles(morning)).not.toContain('Afternoon Jazz');
-    const afternoon = await listUpcomingEvents(db, parseFilters(new URLSearchParams('tod=afternoon'), BOS));
+    const afternoon = await listUpcomingEvents(db, parsed('tod=afternoon'));
     expect(titles(afternoon)).toContain('Afternoon Jazz');
     expect(titles(afternoon)).toContain('Weekend Fest'); // 12:00
-    const evening = await listUpcomingEvents(db, parseFilters(new URLSearchParams('tod=evening'), BOS));
+    const evening = await listUpcomingEvents(db, parsed('tod=evening'));
     expect(titles(evening)).toContain('Late Show');
     expect(titles(evening)).toContain('After Hours DJ'); // 01:00
     expect(titles(evening)).not.toContain('Morning Yoga');
@@ -140,7 +169,7 @@ describe('listUpcomingEvents', () => {
   });
 
   it('region, text (with LIKE escaping + venue name), venueId, ids', async () => {
-    const camb = await listUpcomingEvents(db, parseFilters(new URLSearchParams('region=Cambridge'), BOS));
+    const camb = await listUpcomingEvents(db, parsed('region=Cambridge'));
     expect(camb.every((r) => r.region === 'Cambridge')).toBe(true);
     expect(titles(await listUpcomingEvents(db, bos({ text: 'jazz' })))).toEqual(['Afternoon Jazz']);
     expect(titles(await listUpcomingEvents(db, bos({ text: 'paradise' }))).length).toBeGreaterThan(5);
@@ -165,7 +194,7 @@ describe('listUpcomingEvents', () => {
     // Two rows on one date -> one series date, not recurring.
     expect(byTitle(all, 'Double Booked')!.series_count).toBe(1);
     // Filtered view (only week 1) still knows the series has 8 dates.
-    const week = await listUpcomingEvents(db, parseFilters(new URLSearchParams('when=week&cat=nightlife'), BOS));
+    const week = await listUpcomingEvents(db, parsed('when=week&cat=nightlife'));
     const t = byTitle(week, 'Trivia Night')!;
     expect(t.series_count).toBe(8);
     expect(t.series_image).toBe('https://img/trivia-2.jpg');
@@ -262,11 +291,11 @@ describe('aggregates', () => {
     expect(regions[0]!.count).toBe(upcomingBoston.filter((e) => e.region === 'Cambridge').length);
   });
   it('categoryCounts: plain and availability-aware (ignores the category filter)', async () => {
-    const plain = await categoryCounts(db, 'Boston');
+    const plain = await categoryCounts(db, 'Boston', { city: 'Boston', startCutoff: null });
     const music = plain.find((c) => c.category === 'music')!;
     expect(music.count).toBe(upcomingBoston.filter((e) => e.category === 'music').length);
     expect(plain.find((c) => c.category === null as unknown as string)).toBeUndefined();
-    const f = parseFilters(new URLSearchParams('cat=comedy&free=1'), BOS);
+    const f = parsed('cat=comedy&free=1');
     const aware = await categoryCounts(db, 'Boston', f);
     expect(aware.find((c) => c.category === 'nightlife')!.count).toBe(8); // trivia is free
     expect(aware.find((c) => c.category === 'fitness')).toBeUndefined(); // yoga is paid

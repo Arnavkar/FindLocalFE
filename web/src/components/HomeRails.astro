@@ -1,0 +1,52 @@
+---
+// Netflix-style rows for the unfiltered home: each rail is a horizontally
+// scrolling strip of EventCards (scroll-snap, native scrollbar hidden) with a
+// "See all N" link to the equivalent filtered view (nofollow: filter views are
+// not indexable). Only rendered on page 1 of the unfiltered list view.
+import type { FeedState } from '../lib/feed.js';
+import { railList, type HomeRails } from '../lib/home.js';
+import EventCard from './EventCard.astro';
+interface Props {
+  rails: HomeRails;
+  state: FeedState;
+}
+const { rails, state } = Astro.props;
+const rows = railList(rails);
+let index = 0;
+---
+{rows.length > 0 && (
+  <section class="rails" aria-label="Highlights">
+    {rows.map((r) => (
+      <div class="rail">
+        <div class="rail-head">
+          <h2>{r.title}</h2>
+          {r.query ? (
+            <a rel="nofollow" class="see-all" href={`${state.basePath}?${r.query}`}>See all {r.total.toLocaleString('en-US')} →</a>
+          ) : (
+            <a class="see-all" href="#all-events">See all →</a>
+          )}
+        </div>
+        <div class="strip" role="list">
+          {r.events.map((e) => (
+            <div class="item" role="listitem"><EventCard event={e} tz={state.city.tz} eager={index++ < 3} /></div>
+          ))}
+        </div>
+      </div>
+    ))}
+  </section>
+)}
+
+<style>
+  .rails { display: flex; flex-direction: column; gap: 1.5rem; margin: 1rem 0 2rem; }
+  .rail-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.5rem; }
+  .rail-head h2 { margin: 0; font-size: 1.2rem; }
+  .see-all { font-weight: 600; font-size: 0.9rem; white-space: nowrap; }
+  /* Full-bleed strip: the padding matches the page gutter so cards align with the heading. */
+  .strip {
+    display: flex; gap: 1rem; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain;
+    margin: 0 -1rem; padding: 0.25rem 1rem 0.75rem; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .strip::-webkit-scrollbar { display: none; }
+  .item { flex: 0 0 240px; scroll-snap-align: start; }
+  @media (min-width: 760px) { .item { flex-basis: 260px; } }
+</style>
