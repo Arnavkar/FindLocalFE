@@ -16,6 +16,7 @@ const eventFields: [string, string, string][] = [
   ['region', 'string | null', 'Neighborhood / borough / town, e.g. "Brooklyn", "Cambridge"'],
   ['category', 'slug | null', 'One of the category slugs below'],
   ['event_type', 'string[]', 'The venue\'s own genre tags'],
+  ['performers', '{ name, role, url?, image? }[]', 'People the event is by or about: role is headliner | support | performer | author | instructor | speaker | host | comedian | dj. Empty when the source names nobody'],
   ['price', 'string | null', 'Raw label from the venue ("$15 adv / $20 door", "Free")'],
   ['price_amount', 'number | null', 'Parsed USD amount when we could parse one'],
   ['status', 'string | null', ''],

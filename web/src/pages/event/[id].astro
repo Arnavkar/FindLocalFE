@@ -12,7 +12,7 @@ import ReportButton from '../../components/ReportButton.astro';
 import SaveButton from '../../components/SaveButton.astro';
 import ShareButton from '../../components/ShareButton.astro';
 import { getDb, getEvent, listSeriesDates, listUpcomingEventsForVenue } from '../../lib/db.js';
-import { categoryLabel, cleanText, eventImage, eventLink, longDate, priceLabel, shortDate, truncate } from '../../lib/format.js';
+import { categoryLabel, cleanText, eventImage, eventLink, longDate, performersLabel, priceLabel, shortDate, truncate } from '../../lib/format.js';
 import { googleCalendarUrl } from '../../lib/ics.js';
 import { breadcrumbJsonLd, eventJsonLd } from '../../lib/jsonld.js';
 import { DEFAULT_TZ, SITE, formatEventDate, formatTime, getCity, isUuid, todayIn } from '@findlocal/shared';
@@ -99,6 +99,9 @@ const mapsHref = event?.venue_address ? `https://www.google.com/maps/search/?api
           <li><span class="glyph" aria-hidden="true">↻</span><span>Recurring · {seriesDates.length} upcoming dates (also {otherDates.slice(0, 3).map((d) => formatEventDate(d, tz)).join(', ')}{otherDates.length > 3 ? ` +${otherDates.length - 3} more` : ''})</span></li>
         )}
         <li><Icon name="location" size={18} /><span><a href={`/venue/${event.venue_id}`}>{event.venue_name}</a>{event.venue_address ? ` · ${event.venue_address}` : ''}{event.region ? ` · ${event.region}` : ''}</span></li>
+        {event.performers.length > 0 && (
+          <li><span class="glyph" aria-hidden="true">★</span><span>{performersLabel(event.performers)}</span></li>
+        )}
         {event.category && <li><span class="glyph" aria-hidden="true">#</span><span><a rel="nofollow" href={city ? `/city/${city.slug}?cat=${event.category}` : '#'}>{categoryLabel(event.category)}</a>{event.event_type.length ? ` · ${event.event_type.slice(0, 4).join(', ')}` : ''}</span></li>}
       </ul>
 

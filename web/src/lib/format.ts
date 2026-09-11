@@ -1,7 +1,7 @@
 // Presentation helpers (pure). Date/time formatting comes from
 // @findlocal/shared/dates so the site never builds a local Date from a
 // calendar day.
-import { addDays, categoryBySlug, formatEventDate, formatTime, todayIn, type EventRow } from '@findlocal/shared';
+import { type Performer, addDays, categoryBySlug, formatEventDate, formatTime, todayIn, type EventRow } from '@findlocal/shared';
 
 /** 'Free' | the source's price text | '$12' | ''. Mirrors the old EventCard. */
 export function priceLabel(e: Pick<EventRow, 'price' | 'price_amount'>): string {
@@ -85,6 +85,19 @@ export function eventLink(e: Pick<EventRow, 'ticket_page_url' | 'detail_page_url
   if (e.ticket_page_url) return { href: e.ticket_page_url, label: 'Buy tickets' };
   const href = e.detail_page_url || e.root_url || e.venue_url;
   return href ? { href, label: 'Visit event page' } : null;
+}
+
+/** "Featuring A, B and C" / "Author: Ann Patchett" / "Instructor: …" — one line for the event page. */
+export function performersLabel(performers: Performer[]): string {
+  if (!performers.length) return '';
+  const names = performers.slice(0, 6).map((p) => p.name);
+  const more = performers.length > 6 ? ` +${performers.length - 6} more` : '';
+  const joined = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]!;
+  const roles = new Set(performers.map((p) => p.role));
+  const single = roles.size === 1 ? [...roles][0] : undefined;
+  const prefix: Record<string, string> = { author: 'Author', instructor: 'Instructor', speaker: 'Speaker', host: 'Host', comedian: 'Comedian', dj: 'DJ' };
+  if (single && prefix[single]) return `${prefix[single]}${names.length > 1 ? 's' : ''}: ${joined}${more}`;
+  return `Featuring ${joined}${more}`;
 }
 
 export function pluralize(n: number, one: string, many = `${one}s`): string {

@@ -6,13 +6,14 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { getCity } from './cities.js';
 import { addDays, todayIn } from './dates.js';
 import type { EventFilters } from './filters.js';
-import type { EventRow, VenueRow } from './types.js';
+import type { EventRow, Performer, VenueRow } from './types.js';
 
 const MAX_BINDS = 90; // D1 allows 100 bound params per statement; leave headroom.
 const MAX_LIMIT = 500;
 
-type RawEvent = Omit<EventRow, 'event_type' | 'series_count' | 'series_image'> & {
+type RawEvent = Omit<EventRow, 'event_type' | 'performers' | 'series_count' | 'series_image'> & {
   event_type: string | null;
+  performers: string | null;
   series_count: number | null;
   series_image: string | null;
 };
@@ -28,11 +29,38 @@ function parseJsonArray(raw: string | null): string[] {
   }
 }
 
+/** events.performers: [{name, role, ...}]; older rows may hold bare name strings. */
+function parsePerformers(raw: string | null): Performer[] {
+  if (!raw) return [];
+  try {
+    const v: unknown = JSON.parse(raw);
+    if (!Array.isArray(v)) return [];
+    const out: Performer[] = [];
+    for (const item of v) {
+      if (typeof item === 'string' && item.trim()) out.push({ name: item.trim(), role: 'performer' });
+      else if (item && typeof item === 'object' && typeof (item as Performer).name === 'string') {
+        const p = item as Performer;
+        out.push({
+          name: p.name,
+          role: typeof p.role === 'string' && p.role ? p.role : 'performer',
+          ...(p.source_id ? { source_id: p.source_id } : {}),
+          ...(p.url ? { url: p.url } : {}),
+          ...(p.image ? { image: p.image } : {}),
+        });
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 function mapEvent(r: RawEvent): EventRow {
   const count = r.series_count ?? 1;
   return {
     ...r,
     event_type: parseJsonArray(r.event_type),
+    performers: parsePerformers(r.performers),
     series_count: count,
     series_image: count > 1 ? r.series_image || null : null,
   };
@@ -69,7 +97,7 @@ function chunk<T>(items: T[], size: number): T[][] {
 
 const EVENT_COLS = `
   e.id, e.venue_id, e.city, e.region, e.source, e.external_id, e.title, e.description,
-  e.event_date, e.start_time, e.end_time, e.category, e.event_type, e.price, e.price_amount,
+  e.event_date, e.start_time, e.end_time, e.category, e.event_type, e.performers, e.price, e.price_amount,
   e.status, e.detail_page_url, e.ticket_page_url, e.root_url, e.image_url, e.is_deleted,
   e.first_seen_at, e.last_seen_at, e.updated_at,
   v.name AS venue_name, v.address AS venue_address, v.image AS venue_image,
@@ -153,9 +181,9 @@ function buildWhere(f: EventFilters, skip?: keyof EventFilters): Where {
   const tods = (f.timeOfDay ?? []).map((t) => TOD_SQL[t]).filter((s): s is string => !!s);
   if (tods.length) where.push(`(${tods.join(' OR ')})`);
   if (f.text) {
-    where.push(`(e.title LIKE ? ESCAPE '\\' OR v.name LIKE ? ESCAPE '\\')`);
+    where.push(`(e.title LIKE ? ESCAPE '\\' OR v.name LIKE ? ESCAPE '\\' OR e.performers LIKE ? ESCAPE '\\')`);
     const like = `%${escapeLike(f.text.trim())}%`;
-    binds.push(like, like);
+    binds.push(like, like, like);
   }
   if (f.venueId) {
     where.push(`e.venue_id = ?`);

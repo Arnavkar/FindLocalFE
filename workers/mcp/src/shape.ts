@@ -30,6 +30,7 @@ export function shapeEvent(e: EventRow, withDescription = false) {
     venue: dropNulls({ id: e.venue_id, name: e.venue_name, address: e.venue_address }),
     category: e.category,
     category_tags: e.event_type,
+    performers: e.performers.length ? e.performers.map((p) => ({ name: p.name, role: p.role })) : undefined,
     price_label: e.price,
     price_usd: e.price_amount,
     is_free: isFree(e),

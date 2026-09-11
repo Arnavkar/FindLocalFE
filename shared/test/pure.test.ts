@@ -11,8 +11,8 @@ const LA = cityBySlug('los-angeles')!;
 const NOW = new Date('2026-09-05T03:00:00Z');
 
 describe('cities', () => {
-  it('loads 47 metros and looks up case-insensitively', () => {
-    expect(CITIES.length).toBe(47);
+  it('loads 83 metros and looks up case-insensitively', () => {
+    expect(CITIES.length).toBe(83);
     expect(getCity('new york')?.slug).toBe('new-york');
     expect(getCity('nope')).toBeUndefined();
     expect(cityBySlug('st-louis')?.name).toBe('St. Louis');

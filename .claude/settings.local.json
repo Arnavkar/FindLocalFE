@@ -20,6 +20,8 @@
   },
   "enabledMcpjsonServers": [
     "playwright",
-    "supabase"
-  ]
+    "supabase",
+    "findlocal"
+  ],
+  "enableAllProjectMcpServers": true
 }
