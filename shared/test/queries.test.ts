@@ -48,11 +48,22 @@ describe('listUpcomingEvents', () => {
 
   it('parses performers JSON (objects, and legacy bare strings) and searches them by text', async () => {
     const jazz = byTitle(await listUpcomingEvents(db, bos()), 'Afternoon Jazz')!;
-    expect(jazz.performers).toEqual([{ name: 'Esperanza Spalding', role: 'headliner' }, { name: 'Local Trio', role: 'support' }]);
+    expect(jazz.performers).toEqual([{ name: 'Esperanza Spalding', role: 'headliner', url: 'https://example.com/zzqurltoken' }, { name: 'Local Trio', role: 'support' }]);
     expect(byTitle(await listUpcomingEvents(db, bos()), 'Late Show')!.performers).toEqual([]);
     const legacy = byTitle(await listUpcomingEvents(db, { city: 'Providence', from: TODAY }), 'Author Talk: Debut Novel')!;
     expect(legacy.performers).toEqual([{ name: 'Legacy Stringname', role: 'performer' }]);
     expect(titles(await listUpcomingEvents(db, bos({ text: 'esperanza' })))).toEqual(['Afternoon Jazz']);
+  });
+
+  it('text search matches performer names, not roles or urls; performer filter is name-only too', async () => {
+    expect(titles(await listUpcomingEvents(db, bos({ text: 'headliner' })))).not.toContain('Afternoon Jazz');
+    expect(titles(await listUpcomingEvents(db, bos({ text: 'zzqurltoken' })))).toEqual([]);
+    expect(titles(await listUpcomingEvents(db, bos({ performer: 'local trio' })))).toEqual(['Afternoon Jazz']);
+    expect(titles(await listUpcomingEvents(db, bos({ performer: 'headliner' })))).toEqual([]);
+    expect(titles(await listUpcomingEvents(db, bos({ performer: '%' })))).toEqual([]);
+    expect(await countUpcomingEvents(db, bos({ performer: 'Esperanza' }))).toBe(1);
+    const legacy = await listUpcomingEvents(db, { city: 'Providence', from: TODAY, performer: 'Legacy' });
+    expect(titles(legacy)).toEqual(['Author Talk: Debut Novel']);
   });
 
   it('includeDeleted and paging', async () => {

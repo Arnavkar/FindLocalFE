@@ -81,6 +81,7 @@ export class FindLocalMCP extends McpAgent<Env, unknown, CustomerProps> {
         price_max: z.number().optional().describe("Maximum ticket price in USD (events without a parsed price are excluded)."),
         time_of_day: z.enum(["morning", "afternoon", "evening"]).optional(),
         query: z.string().optional().describe("Free-text search over event title, venue name and performer/author names."),
+        performer: z.string().optional().describe("Only events featuring this performer/author/instructor (substring match on names)."),
         limit: z.number().int().min(1).max(200).optional().describe("Max events to return (default 50)."),
       },
       async (input) => {
@@ -233,6 +234,7 @@ interface SearchInput {
   price_max?: number;
   time_of_day?: "morning" | "afternoon" | "evening";
   query?: string;
+  performer?: string;
   limit?: number;
 }
 
@@ -256,5 +258,6 @@ function buildFilters(city: City, p: SearchInput): EventFilters {
   if (p.price_max !== undefined) f.maxPrice = p.price_max;
   if (p.time_of_day) f.timeOfDay = [p.time_of_day];
   if (p.query) f.text = p.query;
+  if (p.performer) f.performer = p.performer;
   return f;
 }

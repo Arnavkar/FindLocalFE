@@ -8,6 +8,7 @@ import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import EventCard from '../../components/EventCard.astro';
 import Icon from '../../components/Icon.astro';
 import JsonLd from '../../components/JsonLd.astro';
+import PerformerList from '../../components/PerformerList.astro';
 import ReportButton from '../../components/ReportButton.astro';
 import SaveButton from '../../components/SaveButton.astro';
 import ShareButton from '../../components/ShareButton.astro';
@@ -127,6 +128,12 @@ const mapsHref = event?.venue_address ? `https://www.google.com/maps/search/?api
         <section class="panel">
           <h2>About this event</h2>
           <p class="desc">{description}</p>
+        </section>
+      )}
+      {event.performers.length > 0 && (
+        <section class="panel">
+          <h2>Who</h2>
+          <PerformerList performers={event.performers} citySlug={city?.slug} />
         </section>
       )}
       <section class="panel">

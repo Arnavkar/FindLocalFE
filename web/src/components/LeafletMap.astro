@@ -14,6 +14,8 @@ export interface MapMarker {
   subtitle?: string | undefined;
   /** Up to a few linked lines (event titles) under the title. */
   items?: { label: string; href: string }[] | undefined;
+  /** 96x96 image shown to the left of the title in the popup, when present. */
+  image?: string | undefined;
 }
 interface Props {
   markers: MapMarker[];
@@ -26,7 +28,7 @@ const { markers, center, tall = false, label = 'Map of venues' } = Astro.props;
 <div class:list={['fl-map', { tall }]} data-markers={JSON.stringify(markers)} data-center={JSON.stringify(center)} role="region" aria-label={label}></div>
 
 <script>
-  type Marker = { lat: number; lng: number; count: number; title: string; href: string; subtitle?: string; items?: { label: string; href: string }[] };
+  type Marker = { lat: number; lng: number; count: number; title: string; href: string; subtitle?: string; items?: { label: string; href: string }[]; image?: string };
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
   type MapEl = HTMLElement & { _flMap?: import('leaflet').Map; _flInit?: Promise<void> };
@@ -45,13 +47,14 @@ const { markers, center, tall = false, label = 'Map of venues' } = Astro.props;
       const size = m.count > 9 ? 34 : 28;
       const icon = L.divIcon({ className: '', html: `<div class="fl-marker" style="width:${size}px;height:${size}px">${m.count}</div>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
       const items = (m.items ?? []).map((i) => `<li><a href="${esc(i.href)}">${esc(i.label)}</a></li>`).join('');
+      const img = m.image ? `<img src="${esc(m.image)}" width="96" height="96" loading="lazy" alt="">` : '';
+      const body =
+        `<div class="popup-title"><a href="${esc(m.href)}">${esc(m.title)}</a></div>` +
+        (m.subtitle ? `<div>${esc(m.subtitle)}</div>` : '') +
+        (items ? `<ul class="popup-list">${items}</ul>` : '');
       L.marker([m.lat, m.lng], { icon })
         .addTo(map)
-        .bindPopup(
-          `<div class="popup-title"><a href="${esc(m.href)}">${esc(m.title)}</a></div>` +
-            (m.subtitle ? `<div>${esc(m.subtitle)}</div>` : '') +
-            (items ? `<ul class="popup-list">${items}</ul>` : ''),
-        );
+        .bindPopup(`<div class="fl-popup">${img}<div class="fl-popup-body">${body}</div></div>`, { maxWidth: m.image ? 320 : 300 });
       bounds.extend([m.lat, m.lng]);
     }
     if (markers.length > 1 && bounds.isValid()) map.fitBounds(bounds.pad(0.15), { maxZoom: 14 });

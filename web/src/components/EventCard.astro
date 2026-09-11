@@ -1,6 +1,6 @@
 ---
 import { imageUrl, type EventRow } from '@findlocal/shared';
-import { cardDateLabel, categoryLabel, eventImage, priceLabel, shortPriceLabel } from '../lib/format.js';
+import { cardDateLabel, categoryLabel, eventImage, leadPerformerLine, priceLabel, shortPriceLabel } from '../lib/format.js';
 import Icon from './Icon.astro';
 interface Props {
   event: EventRow;
@@ -16,6 +16,7 @@ const price = priceLabel(event);
 const pillPrice = shortPriceLabel(event);
 const where = [event.venue_name, event.region ?? event.venue_region].filter(Boolean).join(' · ');
 const placeholder = categoryLabel(event.category) || 'Event';
+const who = leadPerformerLine(event.performers ?? []);
 ---
 <a class="card" href={`/event/${event.id}`}>
   <div class="thumb">
@@ -30,6 +31,9 @@ const placeholder = categoryLabel(event.category) || 'Event';
   <div class="body">
     <div class="when">{cardDateLabel(event, tz)}</div>
     <h3 class="title">{event.title}</h3>
+    {who && (
+      <div class="who"><Icon name="star" size={14} /><span>{who}</span></div>
+    )}
     {where && (
       <div class="where"><Icon name="location" size={14} /><span>{where}</span></div>
     )}

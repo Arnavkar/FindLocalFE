@@ -160,6 +160,9 @@ const TOD_SQL: Record<string, string> = {
 const FREE_SQL = `(e.price_amount = 0 OR lower(e.price) LIKE '%free%')`;
 const PAID_SQL = `(e.price_amount > 0 OR (e.price_amount IS NULL AND e.price IS NOT NULL AND e.price <> '' AND lower(e.price) NOT LIKE '%free%'))`;
 
+/** Substring match on performer *names* only (one bind). Legacy rows hold bare strings, hence the CASE. */
+const PERFORMER_NAME_SQL = `EXISTS (SELECT 1 FROM json_each(e.performers) p WHERE (CASE WHEN p.type = 'object' THEN json_extract(p.value, '$.name') ELSE p.value END) LIKE ? ESCAPE '\\')`;
+
 interface Where {
   sql: string;
   binds: unknown[];
@@ -195,9 +198,13 @@ function buildWhere(f: EventFilters, skip?: keyof EventFilters): Where {
   const tods = (f.timeOfDay ?? []).map((t) => TOD_SQL[t]).filter((s): s is string => !!s);
   if (tods.length) where.push(`(${tods.join(' OR ')})`);
   if (f.text) {
-    where.push(`(e.title LIKE ? ESCAPE '\\' OR v.name LIKE ? ESCAPE '\\' OR e.performers LIKE ? ESCAPE '\\')`);
+    where.push(`(e.title LIKE ? ESCAPE '\\' OR v.name LIKE ? ESCAPE '\\' OR ${PERFORMER_NAME_SQL})`);
     const like = `%${escapeLike(f.text.trim())}%`;
     binds.push(like, like, like);
+  }
+  if (f.performer) {
+    where.push(PERFORMER_NAME_SQL);
+    binds.push(`%${escapeLike(f.performer.trim())}%`);
   }
   if (f.venueId) {
     where.push(`e.venue_id = ?`);

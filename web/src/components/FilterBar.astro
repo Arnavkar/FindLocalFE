@@ -96,6 +96,15 @@ const mapHref = `${listHref}${listHref.includes('?') ? '&' : '?'}view=map`;
     </div>
   )}
 
+  {f.performer && (
+    <div class="row">
+      <span class="label">Who</span>
+      <div class="chips">
+        <a rel="nofollow" class="chip" href={chipHref(state, { performer: undefined })} aria-current="true" title="Remove"><Icon name="star" size={14} /> {f.performer} <Icon name="close" size={12} /></a>
+      </div>
+    </div>
+  )}
+
   {anyFilter && (
     <div class="row">
       <a rel="nofollow" class="chip clear" href={clearHref}><Icon name="close" size={14} /> Clear filters</a>

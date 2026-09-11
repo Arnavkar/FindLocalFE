@@ -1,7 +1,7 @@
 // Presentation helpers (pure). Date/time formatting comes from
 // @findlocal/shared/dates so the site never builds a local Date from a
 // calendar day.
-import { type Performer, addDays, categoryBySlug, formatEventDate, formatTime, todayIn, type EventRow } from '@findlocal/shared';
+import { type Performer, addDays, leadPerformer, roleLabel, categoryBySlug, formatEventDate, formatTime, todayIn, type EventRow } from '@findlocal/shared';
 
 /** 'Free' | the source's price text | '$12' | ''. Mirrors the old EventCard. */
 export function priceLabel(e: Pick<EventRow, 'price' | 'price_amount'>): string {
@@ -113,4 +113,13 @@ export function performersLabel(performers: Performer[]): string {
 
 export function pluralize(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`;
+}
+
+/** One card line: "Esperanza Spalding" for the bill, "Author: Ann Patchett" for non-performance roles. '' when unknown. */
+export function leadPerformerLine(performers: Performer[]): string {
+  const lead = leadPerformer(performers);
+  if (!lead) return '';
+  const prefixed = new Set(['author', 'instructor', 'speaker', 'host']);
+  const extra = performers.length > 1 ? ` +${performers.length - 1}` : '';
+  return prefixed.has(lead.role) ? `${roleLabel(lead.role)}: ${lead.name}${extra}` : `${lead.name}${extra}`;
 }

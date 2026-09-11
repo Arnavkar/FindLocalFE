@@ -24,3 +24,13 @@ describe('shortPriceLabel', () => {
     expect(shortPriceLabel({ price: 'Advance tickets required', price_amount: null }, 10)).toBe('Advance…');
   });
 });
+
+describe('leadPerformerLine', () => {
+  it('shows the headliner, a +N count, and a role prefix for non-performance roles', async () => {
+    const { leadPerformerLine } = await import('../src/lib/format.js');
+    expect(leadPerformerLine([])).toBe('');
+    expect(leadPerformerLine([{ name: 'Opener', role: 'support' }, { name: 'Big Name', role: 'headliner' }])).toBe('Big Name +1');
+    expect(leadPerformerLine([{ name: 'Ann Patchett', role: 'author' }])).toBe('Author: Ann Patchett');
+    expect(leadPerformerLine([{ name: 'DJ Q', role: 'dj' }])).toBe('DJ Q');
+  });
+});

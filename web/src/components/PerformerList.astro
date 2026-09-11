@@ -1,0 +1,43 @@
+---
+// "Who" section on the event page: performers grouped by role, with an
+// avatar when the source gave us one, an outbound link, and a nofollow link
+// to every other upcoming event featuring the same name.
+import { imageUrl, performersByRole, type Performer } from '@findlocal/shared';
+import Icon from './Icon.astro';
+interface Props {
+  performers: Performer[];
+  citySlug?: string;
+}
+const { performers, citySlug } = Astro.props;
+const groups = performersByRole(performers);
+---
+<ul class="people">
+  {groups.map((g) => g.people.map((p) => {
+    const avatar = p.image ? imageUrl(p.image, { width: 80, height: 80 }) : null;
+    const more = citySlug ? `/city/${citySlug}?performer=${encodeURIComponent(p.name)}` : null;
+    return (
+      <li>
+        {avatar ? <img src={avatar} alt="" width="40" height="40" loading="lazy" decoding="async" /> : <span class="avatar" aria-hidden="true"><Icon name="person" size={20} /></span>}
+        <div class="who">
+          <span class="name">{p.name}</span>
+          <span class="role">{g.label.replace(/s$/, (m) => (g.people.length > 1 ? '' : m))}</span>
+        </div>
+        <div class="links">
+          {more && <a rel="nofollow" href={more}>More events</a>}
+          {p.url && <a href={p.url} rel="noopener nofollow" target="_blank">Website</a>}
+        </div>
+      </li>
+    );
+  }))}
+</ul>
+
+<style>
+  .people { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+  .people li { display: flex; align-items: center; gap: 0.7rem; }
+  .people img, .avatar { width: 40px; height: 40px; border-radius: 999px; object-fit: cover; flex-shrink: 0; }
+  .avatar { display: inline-flex; align-items: center; justify-content: center; background: rgb(var(--teal) / 0.12); color: rgb(var(--teal)); }
+  .who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .name { font-weight: 700; }
+  .role { font-size: 0.8rem; color: rgb(var(--text-3)); }
+  .links { display: flex; gap: 0.8rem; font-size: 0.85rem; white-space: nowrap; }
+</style>
