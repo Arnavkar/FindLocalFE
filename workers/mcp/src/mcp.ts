@@ -80,7 +80,7 @@ export class FindLocalMCP extends McpAgent<Env, unknown, CustomerProps> {
         free_only: z.boolean().optional().describe("Only free events ($0 or labelled free)."),
         price_max: z.number().optional().describe("Maximum ticket price in USD (events without a parsed price are excluded)."),
         time_of_day: z.enum(["morning", "afternoon", "evening"]).optional(),
-        query: z.string().optional().describe("Free-text search over event title and venue name."),
+        query: z.string().optional().describe("Free-text search over event title, venue name and performer/author names."),
         limit: z.number().int().min(1).max(200).optional().describe("Max events to return (default 50)."),
       },
       async (input) => {

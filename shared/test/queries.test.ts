@@ -46,6 +46,15 @@ describe('listUpcomingEvents', () => {
     expect(jazz.price_amount).toBe(25);
   });
 
+  it('parses performers JSON (objects, and legacy bare strings) and searches them by text', async () => {
+    const jazz = byTitle(await listUpcomingEvents(db, bos()), 'Afternoon Jazz')!;
+    expect(jazz.performers).toEqual([{ name: 'Esperanza Spalding', role: 'headliner' }, { name: 'Local Trio', role: 'support' }]);
+    expect(byTitle(await listUpcomingEvents(db, bos()), 'Late Show')!.performers).toEqual([]);
+    const legacy = byTitle(await listUpcomingEvents(db, { city: 'Providence', from: TODAY }), 'Author Talk: Debut Novel')!;
+    expect(legacy.performers).toEqual([{ name: 'Legacy Stringname', role: 'performer' }]);
+    expect(titles(await listUpcomingEvents(db, bos({ text: 'esperanza' })))).toEqual(['Afternoon Jazz']);
+  });
+
   it('includeDeleted and paging', async () => {
     const all = await listUpcomingEvents(db, bos({ includeDeleted: true, limit: 500 }));
     expect(titles(all)).toContain('Deleted Gig');

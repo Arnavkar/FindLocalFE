@@ -6,7 +6,7 @@ const boston = getCity('Boston')!;
 const event: EventRow = {
   id: 'abc', venue_id: 'v1', city: 'Boston', region: 'Cambridge', source: 'scraper_cloudflare', external_id: null,
   title: 'Open Mic', description: null, event_date: '2026-09-11', start_time: '19:30', end_time: null,
-  category: 'comedy', event_type: ['comedy'], price: null, price_amount: 12, status: null,
+  category: 'comedy', event_type: ['comedy'], performers: [], price: null, price_amount: 12, status: null,
   detail_page_url: null, ticket_page_url: 'https://tix.example/1', root_url: null, image_url: 'https://img.example/a.jpg',
   is_deleted: 0, first_seen_at: '', last_seen_at: '', updated_at: '',
   venue_name: 'The Comedy Studio', venue_address: '1 Bow St, Cambridge, MA', venue_image: null, venue_lat: 42.37, venue_lng: -71.12,
@@ -37,6 +37,14 @@ describe('eventJsonLd', () => {
     expect(ld.location.geo).toEqual({ '@type': 'GeoCoordinates', latitude: 42.37, longitude: -71.12 });
     expect(ld.offers).toEqual({ '@type': 'Offer', price: 12, priceCurrency: 'USD', url: 'https://tix.example/1', availability: 'https://schema.org/InStock' });
     expect(ld.description).toBe('A night of comedy.');
+  });
+  it('emits performer as Person for people roles and PerformingGroup for acts', () => {
+    const ld = eventJsonLd({ ...event, performers: [{ name: 'Ann Patchett', role: 'author', url: 'https://x/ap' }, { name: 'Big Thief', role: 'headliner' }] }, boston, '', null) as any;
+    expect(ld.performer).toEqual([
+      { '@type': 'Person', name: 'Ann Patchett', url: 'https://x/ap' },
+      { '@type': 'PerformingGroup', name: 'Big Thief' },
+    ]);
+    expect((eventJsonLd(event, boston, '', null) as any).performer).toBeUndefined();
   });
   it('maps free events, cancelled status and missing price', () => {
     const free = eventJsonLd({ ...event, price_amount: null, price: 'Free' }, boston, '', null) as any;

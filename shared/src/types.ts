@@ -1,5 +1,15 @@
 // Row shapes returned by shared/src/queries.ts. JSON columns (event_type,
-// categories) are parsed by the query mappers; booleans stay 0/1 as in D1.
+// performers, categories) are parsed by the query mappers; booleans stay 0/1 as in D1.
+
+/** One entry of events.performers (JSON column, migration 0005). `role` is one of
+ * headliner | support | performer | author | instructor | speaker | host | comedian | dj. */
+export interface Performer {
+  name: string;
+  role: string;
+  source_id?: string;
+  url?: string;
+  image?: string;
+}
 
 export interface EventRow {
   id: string;
@@ -16,6 +26,8 @@ export interface EventRow {
   end_time: string | null;
   category: string | null;
   event_type: string[];
+  /** People the event is by or about (authors, the bill, instructors). Empty when unknown. */
+  performers: Performer[];
   price: string | null;
   price_amount: number | null;
   status: string | null;

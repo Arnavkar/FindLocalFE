@@ -1,6 +1,6 @@
 // schema.org JSON-LD builders (pure, unit-tested). Shapes carried over from
 // the Expo-era Pages Functions so Search Console sees no regression.
-import { SITE, canonicalUrl, type City, type EventRow, type VenueRow } from '@findlocal/shared';
+import { SITE, canonicalUrl, type City, type EventRow, type Performer, type VenueRow } from '@findlocal/shared';
 
 const SITE_NAME = 'Find Local';
 const SITE_DESCRIPTION =
@@ -138,6 +138,18 @@ export function itemListJsonLd(name: string, events: Pick<EventRow, 'id' | 'titl
   };
 }
 
+// Person for people-shaped roles, PerformingGroup for acts on a bill (a band or a DJ
+// name is a group more often than not; schema.org accepts either on Event.performer).
+const PERSON_ROLES = new Set(['author', 'instructor', 'speaker', 'host', 'comedian']);
+export function performerJsonLd(p: Performer) {
+  return {
+    '@type': PERSON_ROLES.has(p.role) ? 'Person' : 'PerformingGroup',
+    name: p.name,
+    ...(p.url ? { url: p.url } : {}),
+    ...(p.image ? { image: p.image } : {}),
+  };
+}
+
 export function eventJsonLd(e: EventRow, city: City, description: string, image: string | null) {
   const url = canonicalUrl(`/event/${e.id}`);
   const hasPrice = e.price_amount != null || isFree(e);
@@ -153,6 +165,7 @@ export function eventJsonLd(e: EventRow, city: City, description: string, image:
     eventStatus: eventStatus(e.status),
     location: place(e.venue_name, e.venue_address, e.city, e.venue_lat, e.venue_lng),
     organizer: { '@type': 'Organization', name: e.venue_name, ...(e.venue_url ? { url: e.venue_url } : {}) },
+    ...(e.performers.length ? { performer: e.performers.map(performerJsonLd) } : {}),
     ...(hasPrice
       ? {
           offers: {
