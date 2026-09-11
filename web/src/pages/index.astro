@@ -8,7 +8,7 @@ import JsonLd from '../components/JsonLd.astro';
 import { getDb } from '../lib/db.js';
 import { loadFeed } from '../lib/feed.js';
 import { organizationJsonLd, webApplicationJsonLd, webSiteJsonLd } from '../lib/jsonld.js';
-import { SITE } from '@findlocal/shared';
+import { CITIES, SITE } from '@findlocal/shared';
 
 const city = Astro.locals.city;
 const state = await loadFeed(getDb(), city, Astro.url);
@@ -19,7 +19,7 @@ const jsonAlternate = `${SITE}/api/events?city=${encodeURIComponent(city.name)}`
 ---
 <Layout
   title="Find Local — Discover Local Events: Concerts, Comedy, Theater & More"
-  description={`Discover the best local events in ${city.name} and 46 other US cities. Browse concerts, comedy shows, live music, theater, and cultural experiences pulled straight from venue calendars. Free and paid events updated daily.`}
+  description={`Discover the best local events in ${city.name} and ${CITIES.length - 1} other US cities. Browse concerts, comedy shows, live music, theater, and cultural experiences pulled straight from venue calendars. Free and paid events updated daily.`}
   canonicalPath={filtered || paged ? state.basePath : '/'}
   canonicalQuery={paged ? `page=${state.page}` : ''}
   noindex={filtered || beyond}

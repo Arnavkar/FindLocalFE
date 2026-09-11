@@ -4,7 +4,7 @@
 // button. Repeated params (cat=a&cat=b, when=&when=weekend) are normalised by
 // parseFilters/canonicalQuery, so the resulting URL is the same one the desktop
 // chips produce. Opened by FilterFab via the native <dialog> API.
-import { TOD_CHIPS, WHEN_CHIPS, type FeedState } from '../lib/feed.js';
+import { TOD_CHIPS, WHEN_CHIPS, chipHref, type FeedState } from '../lib/feed.js';
 import Icon from './Icon.astro';
 interface Props {
   state: FeedState;
@@ -17,6 +17,7 @@ type RegionOption = FeedState['regions'][number];
 <dialog id="filter-sheet" class="filter-sheet" aria-labelledby="filter-sheet-title">
   <form method="get" action={state.basePath} class="sheet-form">
     {f.text && <input type="hidden" name="q" value={f.text} />}
+    {f.performer && <input type="hidden" name="performer" value={f.performer} />}
     {state.view === 'map' && <input type="hidden" name="view" value="map" />}
 
     <header class="sheet-head">
@@ -26,6 +27,14 @@ type RegionOption = FeedState['regions'][number];
     </header>
 
     <div class="sheet-body">
+      {f.performer && (
+        <section>
+          <h3>Who</h3>
+          <div class="chips">
+            <a rel="nofollow" class="chip active" href={chipHref(state, { performer: undefined })}><Icon name="star" size={14} /> {f.performer} <Icon name="close" size={12} /></a>
+          </div>
+        </section>
+      )}
       <section>
         <h3>When</h3>
         <div class="chips">

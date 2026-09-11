@@ -28,7 +28,7 @@ interface Props {
 }
 const {
   title,
-  description = 'Discover the best local events near you. Browse concerts, comedy shows, live music, theater, and cultural experiences across 47 US cities. Free and paid events updated daily.',
+  description = `Discover the best local events near you. Browse concerts, comedy shows, live music, theater, and cultural experiences across ${CITIES.length} US cities. Free and paid events updated daily.`,
   canonicalPath = Astro.url.pathname,
   canonicalQuery = '',
   noindex = false,
@@ -356,6 +356,8 @@ const searchAction = city ? `/city/${city.slug}` : '/';
   .card .title { font-family: var(--font-head); font-weight: 600; font-size: 1.05rem; line-height: 1.25; margin: 0 0 0.25rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .card .where { display: flex; align-items: center; gap: 0.25rem; color: rgb(var(--text-2)); font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .card .where svg { flex-shrink: 0; color: rgb(var(--text-3)); }
+  .card .who { display: flex; align-items: center; gap: 0.25rem; color: rgb(var(--teal)); font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.15rem; }
+  .card .who svg { flex-shrink: 0; }
 
   /* Maps (Leaflet) */
   .fl-map { height: 380px; border-radius: var(--radius); border: 1px solid rgb(var(--border)); background: rgb(var(--surface-sunken)); margin: 0 0 1.25rem; overflow: hidden; }
@@ -366,6 +368,10 @@ const searchAction = city ? `/city/${city.slug}` : '/';
   .fl-map .popup-title { font-weight: 700; font-family: var(--font-head); margin-bottom: 0.2rem; }
   .fl-map .popup-list { margin: 0.3rem 0 0; padding: 0; list-style: none; }
   .fl-map .popup-list li { margin: 0.15rem 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+  .fl-popup { display: flex; gap: 0.6rem; align-items: flex-start; }
+  .fl-popup img { width: 96px; height: 96px; object-fit: cover; border-radius: var(--radius-sm); flex-shrink: 0; }
+  .fl-popup-body { min-width: 0; }
+  .fl-popup .popup-list li { max-width: 150px; }
   .fl-marker { background: #006565; color: #fff; border: 2px solid #fff; border-radius: 999px; box-shadow: 0 1px 3px rgb(0 0 0 / 0.4); display: flex; align-items: center; justify-content: center; font: 700 12px/1 var(--font-body); }
   @media (prefers-color-scheme: dark) { .fl-map .leaflet-tile { filter: brightness(0.85) contrast(1.05); } }
 

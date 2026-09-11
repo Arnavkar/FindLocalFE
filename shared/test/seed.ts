@@ -32,7 +32,7 @@ interface Ev {
   image?: string | null;
   deleted?: boolean;
   source?: string;
-  performers?: { name: string; role: string }[] | string[];
+  performers?: { name: string; role: string; url?: string }[] | string[];
 }
 
 let n = 0;
@@ -66,7 +66,7 @@ for (let w = 0; w < 8; w++) {
 }
 // Boston singletons, various times / prices / categories.
 ev({ venue: V.sinclair, city: 'Boston', region: 'Cambridge', title: 'Morning Yoga', date: D(2), time: '08:00', category: 'fitness', event_type: ['yoga'], price: '$15', price_amount: 15 });
-ev({ venue: V.sinclair, city: 'Boston', region: 'Cambridge', title: 'Afternoon Jazz', date: D(2), time: '14:30', category: 'music', event_type: ['Live Jazz Music'], price: '$25.00', price_amount: 25, performers: [{ name: 'Esperanza Spalding', role: 'headliner' }, { name: 'Local Trio', role: 'support' }] });
+ev({ venue: V.sinclair, city: 'Boston', region: 'Cambridge', title: 'Afternoon Jazz', date: D(2), time: '14:30', category: 'music', event_type: ['Live Jazz Music'], price: '$25.00', price_amount: 25, performers: [{ name: 'Esperanza Spalding', role: 'headliner', url: 'https://example.com/zzqurltoken' }, { name: 'Local Trio', role: 'support' }] });
 ev({ venue: V.sinclair, city: 'Boston', region: 'Cambridge', title: 'Late Show', date: D(2), time: '23:30', category: 'comedy', event_type: ['comedy'], price: '$40', price_amount: 40 });
 ev({ venue: V.sinclair, city: 'Boston', region: 'Cambridge', title: 'After Hours DJ', date: D(3), time: '01:00', category: 'nightlife', event_type: ['dj set'], price: '$10', price_amount: 10 });
 ev({ venue: V.paradise, city: 'Boston', region: 'Allston', title: 'The Headliners', date: D(0), time: '20:00', category: 'music', price: '$35.50', price_amount: 35.5, source: 'ticketmaster', image: 'https://img/headliners.jpg' });

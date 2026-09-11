@@ -4,12 +4,29 @@ import Layout from '../layouts/Layout.astro';
 import VenueMap from '../components/VenueMap.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
 import CityLinks from '../components/CityLinks.astro';
-import { getDb, listVenues } from '../lib/db.js';
-import { SITE } from '@findlocal/shared';
+import { getDb, listVenues, listVenueTypes } from '../lib/db.js';
+import { SITE, imageUrl, type VenueSort } from '@findlocal/shared';
 import { cleanText, truncate } from '../lib/format.js';
 
 const city = Astro.locals.city;
-const venues = await listVenues(getDb(), { city: city.name, withUpcoming: true });
+const params = Astro.url.searchParams;
+const q = (params.get('q') ?? '').replace(/\s+/g, ' ').trim().slice(0, 100);
+const type = (params.get('type') ?? '').trim().slice(0, 100);
+const sort: VenueSort = params.get('sort') === 'upcoming' ? 'upcoming' : 'name';
+const filtered = !!(q || type || sort !== 'name');
+const [venues, types] = await Promise.all([
+  listVenues(getDb(), { city: city.name, withUpcoming: true, q: q || undefined, type: type || undefined, sort }),
+  listVenueTypes(getDb(), city.name),
+]);
+function href(next: { q?: string; type?: string; sort?: VenueSort }): string {
+  const u = new URLSearchParams();
+  const nq = next.q ?? q, nt = next.type ?? type, ns = next.sort ?? sort;
+  if (nq) u.set('q', nq);
+  if (nt) u.set('type', nt);
+  if (ns !== 'name') u.set('sort', ns);
+  const s = u.toString();
+  return s ? `/venues?${s}` : '/venues';
+}
 const active = venues.filter((v) => v.upcoming > 0);
 const rest = venues.filter((v) => v.upcoming === 0);
 const jsonAlternate = `${SITE}/api/venues?city=${encodeURIComponent(city.name)}`;
@@ -19,12 +36,30 @@ const crumbs = [{ name: 'Home', path: '/' }, { name: `Events in ${city.name}`, p
   title={`Venues in ${city.name}`}
   description={`${venues.length} music halls, comedy clubs, theaters, bars and community spaces in ${city.name}, ${city.state} whose calendars feed Find Local — with upcoming event counts and a map.`}
   jsonAlternate={jsonAlternate}
+  noindex={filtered}
   wide
 >
   <Breadcrumbs crumbs={crumbs} />
   <h1>Venues in {city.name}</h1>
   <p class="lede">{venues.length} venues whose calendars feed Find Local. Pick a spot to see everything it has coming up, or <a href={`/city/${city.slug}`}>browse all upcoming events in {city.name}</a>. Use the city picker in the header to switch metros.</p>
-  {venues.length === 0 ? (
+  <form class="venue-controls" method="get" action="/venues">
+    <input type="search" name="q" value={q} placeholder="Search venues" aria-label="Search venues" />
+    {type && <input type="hidden" name="type" value={type} />}
+    {sort !== 'name' && <input type="hidden" name="sort" value={sort} />}
+    <button class="btn ghost" type="submit">Search</button>
+    <span class="sort">
+      Sort: <a href={href({ sort: 'name' })} rel="nofollow" aria-current={sort === 'name' ? 'true' : undefined}>A–Z</a> · <a href={href({ sort: 'upcoming' })} rel="nofollow" aria-current={sort === 'upcoming' ? 'true' : undefined}>Most events</a>
+    </span>
+  </form>
+  {types.length > 1 && (
+    <p class="type-chips">
+      <a class:list={['chip', { on: !type }]} href={href({ type: '' })} rel="nofollow">All types</a>
+      {types.slice(0, 14).map((t) => <a class:list={['chip', { on: t.type.toLowerCase() === type.toLowerCase() }]} href={href({ type: t.type })} rel="nofollow">{t.type} <span class="faint">{t.count}</span></a>)}
+    </p>
+  )}
+  {venues.length === 0 && filtered ? (
+    <p class="empty">No venues match. <a href="/venues">Clear filters</a>.</p>
+  ) : venues.length === 0 ? (
     <>
       <p class="empty">No venues listed for {city.name} yet — it's a new metro and onboarding is in progress. Pick another city below.</p>
       <CityLinks current={city.slug} heading="Venues by city" />
@@ -37,7 +72,7 @@ const crumbs = [{ name: 'Home', path: '/' }, { name: `Events in ${city.name}`, p
     {active.map((v) => (
       <li>
         <a class="venue" href={`/venue/${v.id}`}>
-          <div class="thumb">{v.image ? <img src={v.image} alt="" loading="lazy" decoding="async" width="96" height="96" /> : <span class="ph" aria-hidden="true">📍</span>}</div>
+          <div class="thumb">{v.image ? <img src={imageUrl(v.image, { width: 112, height: 112 })} alt="" loading="lazy" decoding="async" width="96" height="96" /> : <span class="ph" aria-hidden="true">📍</span>}</div>
           <div>
             <div class="name">{v.name}</div>
             <div class="meta">{[v.region, v.type].filter(Boolean).join(' · ')}{v.description ? ` — ${truncate(cleanText(v.description), 90)}` : ''}</div>
@@ -56,6 +91,14 @@ const crumbs = [{ name: 'Home', path: '/' }, { name: `Events in ${city.name}`, p
 </Layout>
 
 <style>
+  .venue-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0 0 0.6rem; }
+  .venue-controls input[type="search"] { flex: 1 1 200px; padding: 0.45rem 0.7rem; border: 1px solid rgb(var(--border)); border-radius: var(--radius-sm); background: rgb(var(--surface)); color: inherit; font: inherit; }
+  .sort { color: rgb(var(--text-2)); font-size: 0.9rem; }
+  .sort a[aria-current] { font-weight: 700; color: rgb(var(--teal)); }
+  .type-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 1rem; }
+  .chip { padding: 0.25rem 0.7rem; border: 1px solid rgb(var(--border)); border-radius: 999px; font-size: 0.85rem; color: inherit; background: rgb(var(--surface)); }
+  .chip.on { border-color: rgb(var(--teal)); background: rgb(var(--teal) / 0.1); font-weight: 600; }
+  .chip:hover { text-decoration: none; border-color: rgb(var(--teal)); }
   .section { margin: 1.5rem 0 0.8rem; }
   .venue-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.6rem; }
   .venue { display: grid; grid-template-columns: 56px 1fr auto; gap: 0.7rem; align-items: center; padding: 0.55rem; border: 1px solid rgb(var(--border)); border-radius: var(--radius); color: inherit; background: rgb(var(--surface)); }

@@ -89,7 +89,7 @@ curl '${BASE}/api/venues?city=chicago'`}</code></pre></div>
           <tr><td><code>q</code></td><td>Free text, ≤ 100 chars</td><td>Matches event title and venue name</td></tr>
           <tr><td><code>page</code></td><td>1-based</td><td>100 events per page by default</td></tr>
           <tr><td><code>limit</code></td><td>1–500</td><td>Overrides the page size</td></tr>
-          <tr><td><code>venue</code></td><td>Venue uuid</td><td>Upcoming events at one venue</td></tr>
+          <tr><td><code>venue</code></td><td>Venue uuid</td><td>Upcoming events at one venue. The city is taken from the venue (<code>city=</code> is ignored), the default <code>limit</code> is 500, and an unknown venue returns <code>404</code>. Other filters still apply.</td></tr>
           <tr><td><code>ids</code></td><td>Comma list of ≤ 200 event uuids</td><td>Bypasses every other filter; any date, delisted included</td></tr>
         </tbody>
       </table>
@@ -112,7 +112,21 @@ curl '${BASE}/api/venues?city=chicago'`}</code></pre></div>
         <tbody>{venueFields.map(([f, n]) => <tr><td><code>{f}</code></td><td>{n}</td></tr>)}</tbody>
       </table>
     </div>
-    <p><code>/api/venues</code> accepts <code>city</code> and an optional <code>region</code>.</p>
+    <h3 id="venue-filters">Filtering <code>/api/venues</code></h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Param</th><th>Values</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>city</code></td><td>Slug or name</td><td>Defaults to Boston</td></tr>
+          <tr><td><code>region</code></td><td>Neighborhood label</td><td>Exact match</td></tr>
+          <tr><td><code>q</code></td><td>Free text, ≤ 100 chars</td><td>Venue name contains (case-insensitive)</td></tr>
+          <tr><td><code>type</code></td><td>e.g. <code>music venue</code>, <code>bookstore</code>, <code>comedy club</code></td><td>Exact, case-insensitive. Values come from the data; see the <code>type</code> field on each venue.</td></tr>
+          <tr><td><code>sort</code></td><td><code>name</code> (default) | <code>upcoming</code></td><td><code>upcoming</code> = most upcoming events first, then name</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="code"><pre><code>{`# Boston bookstores, busiest first
+curl '${BASE}/api/venues?city=boston&type=bookstore&sort=upcoming'`}</code></pre></div>
 
     <h2 id="categories">Categories</h2>
     <div class="table-wrap">
