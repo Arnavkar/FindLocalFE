@@ -204,10 +204,8 @@ export class FindLocalMCP extends McpAgent<Env, unknown, CustomerProps> {
         const gate = await this.gate();
         if (!gate.ok) return gate.response;
         try {
-          const [venue, events] = await Promise.all([
-            getVenue(this.env.DB, input.venue_id),
-            listUpcomingEventsForVenue(this.env.DB, input.venue_id, Math.min(input.limit ?? 20, 100)),
-          ]);
+          const venue = await getVenue(this.env.DB, input.venue_id);
+          const events = await listUpcomingEventsForVenue(this.env.DB, input.venue_id, Math.min(input.limit ?? 20, 100), venue ? { city: venue.city } : {});
           return jsonText({ venue: venue ? shapeVenue(venue) : { id: input.venue_id }, count: events.length, events: events.map((e) => shapeEvent(e)) });
         } catch (e: any) {
           return errText(`get_events_at_venue failed: ${e.message}`);

@@ -15,7 +15,7 @@ import { getDb, getEvent, listSeriesDates, listUpcomingEventsForVenue } from '..
 import { categoryLabel, cleanText, eventImage, eventLink, longDate, performersLabel, priceLabel, shortDate, truncate } from '../../lib/format.js';
 import { googleCalendarUrl } from '../../lib/ics.js';
 import { breadcrumbJsonLd, eventJsonLd } from '../../lib/jsonld.js';
-import { DEFAULT_TZ, SITE, formatEventDate, formatTime, getCity, isUuid, todayIn } from '@findlocal/shared';
+import { DEFAULT_TZ, SITE, formatEventDate, formatTime, getCity, imageUrl, isUuid, todayIn } from '@findlocal/shared';
 
 const id = Astro.params.id ?? '';
 const event = isUuid(id) ? await getEvent(getDb(), id) : null;
@@ -34,12 +34,14 @@ const metaDescription = event
   ? truncate(description || `${event.title} at ${event.venue_name} in ${event.city} on ${shortDate(event.event_date, tz)}.`, 160)
   : '';
 const image = event ? eventImage(event) : null;
+// OG image (ogImage below) and JSON-LD stay on the raw `image`; only the hero <img> is CDN-sized.
+const heroImage = imageUrl(image, { width: 1280, height: 720 });
 const link = event ? eventLink(event) : null;
 const price = event ? priceLabel(event) : '';
 const [seriesDates, more] = event && !isPast
   ? await Promise.all([
       event.series_count > 1 ? listSeriesDates(getDb(), event.venue_id, event.title) : Promise.resolve([] as string[]),
-      listUpcomingEventsForVenue(getDb(), event.venue_id, 7),
+      listUpcomingEventsForVenue(getDb(), event.venue_id, 7, { city: event.city }),
     ])
   : [[], []];
 const otherDates = seriesDates.filter((d) => d !== event?.event_date);
@@ -80,7 +82,7 @@ const mapsHref = event?.venue_address ? `https://www.google.com/maps/search/?api
       {city && <BackLink href={`/city/${city.slug}`} label={`Back to events in ${city.name}`} />}
       <div class="hero">
         {image ? (
-          <img src={image} alt="" width="1280" height="720" fetchpriority="high" decoding="async" />
+          <img src={heroImage} alt="" width="1280" height="720" fetchpriority="high" decoding="async" />
         ) : (
           <div class="placeholder" aria-hidden="true">{categoryLabel(event.category) || 'Event'}</div>
         )}

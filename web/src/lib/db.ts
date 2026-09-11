@@ -25,6 +25,8 @@ export {
   listUpcomingEventsForCities,
   listUpcomingEventsForVenue,
   listVenues,
+  listVenueTypes,
+  countUpcomingEventsForVenue,
   type EventFilters,
   type EventRow,
   type VenueRow,

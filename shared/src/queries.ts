@@ -129,6 +129,20 @@ const SERIES_CTE = `
     FROM days WINDOW w AS (PARTITION BY venue_id, norm_title)
   )`;
 
+/** Series info over one venue's upcoming rows (series are per venue by definition). Binds: venueId, today. */
+const SERIES_CTE_VENUE = `
+  WITH days AS (
+    SELECT venue_id, lower(trim(title)) AS norm_title, event_date,
+           MIN(CASE WHEN image_url IS NOT NULL AND image_url <> '' THEN image_url END) AS img
+    FROM events WHERE venue_id = ? AND is_deleted = 0 AND event_date >= ?
+    GROUP BY venue_id, norm_title, event_date
+  ), series AS (
+    SELECT venue_id, norm_title, event_date,
+           COUNT(*) OVER w AS series_count,
+           FIRST_VALUE(img) OVER (PARTITION BY venue_id, norm_title ORDER BY img IS NULL, event_date) AS series_image
+    FROM days WINDOW w AS (PARTITION BY venue_id, norm_title)
+  )`;
+
 const SERIES_JOIN = `LEFT JOIN series sr ON sr.venue_id = e.venue_id
   AND sr.norm_title = lower(trim(e.title)) AND sr.event_date = e.event_date`;
 
@@ -259,15 +273,47 @@ function compareEvents(a: EventRow, b: EventRow): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-export async function listUpcomingEventsForVenue(db: D1Database, venueId: string, limit = 50): Promise<EventRow[]> {
-  const today = todayDefault();
-  const sql = `SELECT ${EVENT_COLS}, ${SERIES_SUBQ} FROM events e JOIN venues v ON v.id = e.venue_id
-    WHERE e.venue_id = ? AND e.is_deleted = 0 AND e.event_date >= ? ${ORDER} LIMIT ?`;
+export interface VenueEventsOptions {
+  /** City.name of the venue when the caller already has it (skips a lookup); "today" resolves in its zone. */
+  city?: string;
+  offset?: number;
+}
+
+/** "Today" for a venue: its city's zone (one small lookup unless the caller passes the city). */
+async function venueToday(db: D1Database, venueId: string, city?: string): Promise<string> {
+  if (city) return cityToday(city);
+  const row = await db.prepare(`SELECT city FROM venues WHERE id = ?`).bind(venueId).first<{ city: string | null }>();
+  return row?.city ? cityToday(row.city) : todayDefault();
+}
+
+/** Upcoming events at one venue with recurrence info, "today" in the venue's city zone. */
+export async function listUpcomingEventsForVenue(
+  db: D1Database,
+  venueId: string,
+  limit = 50,
+  opts: VenueEventsOptions = {},
+): Promise<EventRow[]> {
+  const id = venueId.trim().toLowerCase();
+  const today = await venueToday(db, id, opts.city);
+  const sql = `${SERIES_CTE_VENUE}
+    SELECT ${EVENT_COLS}, sr.series_count, sr.series_image
+    FROM events e JOIN venues v ON v.id = e.venue_id ${SERIES_JOIN}
+    WHERE e.venue_id = ? AND e.is_deleted = 0 AND e.event_date >= ? ${ORDER} LIMIT ? OFFSET ?`;
   const { results } = await db
     .prepare(sql)
-    .bind(today, today, venueId.trim().toLowerCase(), today, Math.min(Math.max(limit, 1), MAX_LIMIT))
+    .bind(id, today, id, today, Math.min(Math.max(limit, 1), MAX_LIMIT), Math.max(opts.offset ?? 0, 0))
     .all<RawEvent>();
   return results.map(mapEvent);
+}
+
+/** Upcoming non-deleted events at one venue, "today" in the venue's city zone. */
+export async function countUpcomingEventsForVenue(db: D1Database, venueId: string, city?: string): Promise<number> {
+  const id = venueId.trim().toLowerCase();
+  const row = await db
+    .prepare(`SELECT COUNT(*) AS n FROM events WHERE venue_id = ? AND is_deleted = 0 AND event_date >= ?`)
+    .bind(id, await venueToday(db, id, city))
+    .first<{ n: number }>();
+  return row?.n ?? 0;
 }
 
 /** Distinct upcoming dates for the same normalised title at a venue. */
@@ -342,11 +388,19 @@ export async function countUpcomingEventsForCities(db: D1Database, o: MultiCityO
 
 // ---------------------------------------------------------------- venues
 
+export type VenueSort = 'name' | 'upcoming';
+
 export interface VenueListOptions {
   city: string;
   region?: string;
   /** Populate `upcoming` (count of upcoming non-deleted events) via a correlated subquery. */
   withUpcoming?: boolean;
+  /** `name` (default) or `upcoming` (most upcoming first, then name; implies withUpcoming). */
+  sort?: VenueSort;
+  /** Case-insensitive "name contains". */
+  q?: string;
+  /** Exact venue type, case-insensitive (see listVenueTypes). */
+  type?: string;
 }
 
 function upcomingCol(withUpcoming: boolean | undefined): string {
@@ -356,28 +410,53 @@ function upcomingCol(withUpcoming: boolean | undefined): string {
 }
 
 export async function listVenues(db: D1Database, o: VenueListOptions): Promise<VenueRow[]> {
+  const withUpcoming = !!o.withUpcoming || o.sort === 'upcoming';
   const binds: unknown[] = [];
-  if (o.withUpcoming) binds.push(cityToday(o.city));
+  if (withUpcoming) binds.push(cityToday(o.city));
   const where = [`v.is_active = 1`, `v.city = ?`];
   binds.push(o.city);
   if (o.region) {
     where.push(`v.region = ?`);
     binds.push(o.region);
   }
+  const q = o.q?.trim();
+  if (q) {
+    where.push(`v.name LIKE ? ESCAPE '\\'`);
+    binds.push(`%${escapeLike(q)}%`);
+  }
+  const type = o.type?.trim();
+  if (type) {
+    where.push(`lower(v.type) = lower(?)`);
+    binds.push(type);
+  }
+  const order = o.sort === 'upcoming' ? `ORDER BY upcoming DESC, v.name` : `ORDER BY v.name`;
   const { results } = await db
-    .prepare(`SELECT ${VENUE_COLS}, ${upcomingCol(o.withUpcoming)} FROM venues v WHERE ${where.join(' AND ')} ORDER BY v.name`)
+    .prepare(`SELECT ${VENUE_COLS}, ${upcomingCol(withUpcoming)} FROM venues v WHERE ${where.join(' AND ')} ${order}`)
     .bind(...binds)
     .all<RawVenue>();
   return results.map(mapVenue);
 }
 
-/** One venue by id (active or not), with its upcoming count. */
+/** Distinct venue types in a city (active venues), most common first. */
+export async function listVenueTypes(db: D1Database, city: string): Promise<{ type: string; count: number }[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT type, COUNT(*) AS count FROM venues
+       WHERE is_active = 1 AND city = ? AND type IS NOT NULL AND type <> ''
+       GROUP BY type ORDER BY count DESC, type`,
+    )
+    .bind(city)
+    .all<{ type: string; count: number }>();
+  return results;
+}
+
+/** One venue by id (active or not), with its upcoming count ("today" in the venue's city zone). */
 export async function getVenue(db: D1Database, id: string): Promise<VenueRow | null> {
-  const row = await db
-    .prepare(`SELECT ${VENUE_COLS}, ${upcomingCol(true)} FROM venues v WHERE v.id = ?`)
-    .bind(todayDefault(), id.trim().toLowerCase())
-    .first<RawVenue>();
-  return row ? mapVenue(row) : null;
+  const vid = id.trim().toLowerCase();
+  const row = await db.prepare(`SELECT ${VENUE_COLS}, NULL AS upcoming FROM venues v WHERE v.id = ?`).bind(vid).first<RawVenue>();
+  if (!row) return null;
+  const upcoming = await countUpcomingEventsForVenue(db, vid, row.city);
+  return mapVenue({ ...row, upcoming });
 }
 
 /** Active venues whose name contains `name` (case-insensitive LIKE), optionally within a city. */

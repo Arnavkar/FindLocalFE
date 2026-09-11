@@ -17,6 +17,9 @@ export function isFullQueryRoute(pathname: string): boolean {
   return pathname.startsWith('/api/') || pathname.startsWith('/embed/');
 }
 
+/** Extra (non-contract) query keys a route's HTML depends on. */
+const EXTRA_KEYS: Record<string, string[]> = { '/venues': ['sort', 'type'] };
+
 /** Routes that offer `?view=map` (the map variant must not collide with the list). */
 export function hasMapView(pathname: string): boolean {
   return pathname === '/' || pathname.startsWith('/city/');
@@ -52,6 +55,10 @@ export function cacheQueryFor(url: URL, cookieCity: string | null): string {
   const canon = canonicalQuery(url.searchParams);
   if (canon) parts.push(canon);
   if (hasMapView(url.pathname) && url.searchParams.get('view') === 'map') parts.push('view=map');
+  for (const k of EXTRA_KEYS[url.pathname] ?? []) {
+    const v = url.searchParams.get(k)?.trim();
+    if (v) parts.push(`${k}=${encodeURIComponent(v)}`);
+  }
   if (isCityCookieRoute(url.pathname)) parts.push(`_city=${encodeURIComponent(cookieCity ?? DEFAULT_CITY_NAME)}`);
   return parts.join('&');
 }

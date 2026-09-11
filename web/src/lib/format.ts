@@ -13,6 +13,17 @@ export function priceLabel(e: Pick<EventRow, 'price' | 'price_amount'>): string 
   return '';
 }
 
+/** priceLabel(e), truncated for tight card pills: word-boundary cut before
+ * `max` chars (never shorter than 6), plus an ellipsis. Used by the card
+ * pill; the event detail page keeps the full label. */
+export function shortPriceLabel(e: Pick<EventRow, 'price' | 'price_amount'>, max = 14): string {
+  const full = priceLabel(e);
+  if (full.length <= max) return full;
+  const cut = full.slice(0, max);
+  const sp = cut.lastIndexOf(' ');
+  return `${sp >= 6 ? cut.slice(0, sp) : cut.slice(0, 6)}…`;
+}
+
 /** Category display label for a slug (falls back to the raw value). */
 export function categoryLabel(slug: string | null | undefined): string {
   if (!slug) return '';
